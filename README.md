@@ -10,7 +10,7 @@ The **Pokémon Trainer Inventory Service** is a backend REST API that allows tra
 
 - Register trainer profiles  
 - Add Pokémon to their inventory  
-- Validate Pokémon species via **PokeAPI**  
+- Validate Pokémon species via [**PokeAPI**](https://pokeapi.co/docs/v2)
 - Trade Pokémon with other trainers  
 - List Pokémon for sale  
 - Buy Pokémon from other trainers  
