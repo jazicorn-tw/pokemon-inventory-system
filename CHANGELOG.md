@@ -70,7 +70,6 @@ This project follows **semantic versioning** and uses a **TDD-first roadmap**.
 
 ## [v0.7.0] — Authentication / JWT
 
-
 - UserAccount entity + repository.
 - `/auth/register` + `/auth/login` endpoints.
 - JWT token provider + filter.

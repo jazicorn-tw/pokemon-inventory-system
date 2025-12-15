@@ -1,4 +1,4 @@
-# 🎒 Pokedex Trainer Inventory Service  
+# 🎒 Pokémon Trainer Inventory Service  
 
 _A Spring Boot 4 API for trainers to manage their Pokémon, trade with others, and participate in a marketplace — powered by PokeAPI and built with TDD._
 
@@ -6,7 +6,7 @@ _A Spring Boot 4 API for trainers to manage their Pokémon, trade with others, a
 
 ## 🚀 Overview
 
-The **Pokedex Trainer Inventory Service** is a backend REST API that allows trainers to:
+The **Pokémon Trainer Inventory Service** is a backend REST API that allows trainers to:
 
 - Register trainer profiles  
 - Add Pokémon to their inventory  
@@ -247,7 +247,7 @@ This generates a production-ready OCI image.
 
 ---
 
-## 🚀 Your project is now fully equipped for
+## 🚀 Project Includes
 
 - **API development**
 - **PokeAPI integration**
@@ -260,8 +260,6 @@ This generates a production-ready OCI image.
 - **Migrations (Flyway)**
 - **DevTools hot restart**
 - **H2 + Postgres switching**
-
-🎉 **You are in REALLY good shape.**
 
 ---
 

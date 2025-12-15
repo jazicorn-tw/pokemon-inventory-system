@@ -1,3 +1,4 @@
+<!-- markdownlint-disable-file MD024 -->
 # Phases
 
 Below is a tailored to the phased development plan.
