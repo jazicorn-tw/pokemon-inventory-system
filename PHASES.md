@@ -1,11 +1,6 @@
 <!-- markdownlint-disable-file MD024 -->
 # Phases
 
-Below is a tailored to the phased development plan.
-It documents the project *and* serves as a roadmap for contributors, including how TDD drives each version.
-
-This is ready to drop into your repository as `README.md`.
-
 ---
 
 ## 🎒 Pokémon Trainer Inventory Service
