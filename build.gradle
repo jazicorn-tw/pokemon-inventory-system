@@ -39,15 +39,15 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework:spring-webflux'
 
-  // Keep Spring Boot integration
-  implementation "org.springframework.boot:spring-boot-starter-flyway"
+	// Keep Spring Boot integration
+	implementation "org.springframework.boot:spring-boot-starter-flyway"
 
-  // Force Flyway artifacts to a compatible set
-  implementation "org.flywaydb:flyway-core:11.20.0"
-  runtimeOnly  "org.flywaydb:flyway-database-postgresql:11.20.0"
+	// Force Flyway artifacts to a compatible set
+	implementation "org.flywaydb:flyway-core:11.20.0"
+	runtimeOnly  "org.flywaydb:flyway-database-postgresql:11.20.0"
 
-  // JDBC driver
-  runtimeOnly "org.postgresql:postgresql"
+	// JDBC driver
+	runtimeOnly "org.postgresql:postgresql"
 
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
