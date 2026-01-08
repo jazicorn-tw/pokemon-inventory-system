@@ -31,7 +31,7 @@ This ensures long-term maintainability and high test coverage.
 ## 🧩 Core Technologies
 
 | Area | Technology |
-|------|------------|
+| ------ | ------------ |
 | Language | **Java 21** |
 | Framework | **Spring Boot 4** |
 | Build Tool | Gradle |
@@ -263,9 +263,8 @@ This generates a production-ready OCI image.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-Contributions are welcome!
-Follow the TDD workflow outlined in the version roadmap.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 ---

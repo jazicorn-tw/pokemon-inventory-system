@@ -4,6 +4,10 @@ plugins {
 	id 'io.spring.dependency-management' version '1.1.7'
 }
 
+ext {
+  set("flyway.version", "11.14.1")
+}
+
 group = 'com.pokedex'
 version = '0.0.1-SNAPSHOT'
 description = 'A Spring Boot 4 API for trainers to manage their Pokémon, trade with others, and participate in a marketplace - powered by PokeAPI and built with TDD'
@@ -30,23 +34,45 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+	// Web
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework:spring-webflux'
+
+  // Keep Spring Boot integration
+  implementation "org.springframework.boot:spring-boot-starter-flyway"
+
+  // Force Flyway artifacts to a compatible set
+  implementation "org.flywaydb:flyway-core:11.20.0"
+  runtimeOnly  "org.flywaydb:flyway-database-postgresql:11.20.0"
+
+  // JDBC driver
+  runtimeOnly "org.postgresql:postgresql"
+
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Databases
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
+
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
+	// Testing
 	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webflux-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
+	// Spring Boot's Testcontainers Support
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
-	testImplementation 'org.testcontainers:testcontainers-postgresql'
+	testImplementation platform("org.testcontainers:testcontainers-bom:1.20.4")
+	testImplementation "org.testcontainers:junit-jupiter"
+	testImplementation "org.testcontainers:postgresql"
+
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
 
 tasks.named('test') {
 	useJUnitPlatform()
