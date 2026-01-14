@@ -2,9 +2,8 @@
 
 > PostgreSQL + Docker + Colima + Testcontainers + Ryuk
 
-This guide explains how integration tests are run locally using **Testcontainers** with **PostgreSQL**.
-
----
+This project uses **Testcontainers** to start a **PostgreSQL** container for integration tests.
+This document is the **single source of truth** for diagnosing local failures.
 
 ## TL;DR – Quick Fix
 
@@ -27,109 +26,48 @@ If you see:
 Mapped port can only be obtained after the container is started
 ```
 
-You are mixing Testcontainers strategies.  
+You are mixing Testcontainers strategies.
 This project uses **classic Testcontainers only**.
 
----
-
-## How Tests Are Wired
+## How Tests Are Wired (Authoritative)
 
 - JUnit 5 + `@Testcontainers`
 - Static `@Container` PostgreSQL container
 - Datasource injected via `@DynamicPropertySource`
-- Spring Boot does **not** manage container lifecycle
+- Spring Boot **does not** manage the container lifecycle
 - Flyway runs automatically against the container database
 
-❌ Do not use `@ServiceConnection` in this project.
-
----
-
-## macOS Setup (Colima)
-
-```bash
-colima start
-docker context use colima
-docker ps
-```
-
-### Fix: DOCKER_HOST overrides context
-
-```bash
-unset DOCKER_HOST
-docker context use colima
-```
-
-Remove any `export DOCKER_HOST=...` from your shell configuration to make this permanent.
-
----
-
-## Force Testcontainers to Use Colima
-
-Create `~/.testcontainers.properties`:
-
-```properties
-docker.host=unix:///Users/<YOUR_USER>/.colima/default/docker.sock
-```
-
----
+❌ `@ServiceConnection` is **not allowed**
 
 ## Common Errors
 
-### Docker not found
+### 0. Colima
 
-```bash
-Could not find a valid Docker environment
-```
+See [COLIMA](errors/COLIMA.md)
 
-➡ Fix: Start Docker or Colima.
+### 1. Docker
 
----
+See [DOCKER](errors/DOCKER.md)
 
-### Mixed Testcontainers configuration
+### 2. Testcontainers
 
-```bash
-Mapped port can only be obtained after the container is started
-```
+See [TESTCONTAINERS](errors/TESTCONTAINERS.md)
 
-➡ Fix:
+### 3. PostgreSQL
 
-- Remove `@ServiceConnection`
-- Use static `@Container` + `@DynamicPropertySource`
+See [POSTGRESQL](errors/POSTGRESQL.md)
 
----
+See [CI-POSTGRESQL](errors/CI-POSTGRESQL.md)
 
-## Flyway Errors
+### 4. Flyway
 
-### Validation failed
+See [FLYWAY](errors/FLYWAY.md)
 
-Cause: migration edited after execution.
+### 5. Ryuk (Testcontainers Reaper)
 
-Fix:
+See [RYUK](errors/RYUK.md)
 
-- Re-run tests (fresh container)
-- Or remove persisted Docker volumes
-
----
-
-## Ryuk Errors
-
-If Ryuk fails:
-
-```bash
-docker run --rm hello-world
-```
-
-Last resort:
-
-```bash
-TESTCONTAINERS_RYUK_DISABLED=true ./gradlew test
-```
-
-⚠️ Disabling Ryuk may leave orphaned containers.
-
----
-
-## Test Profile
+## Recommended Test Profile
 
 `src/test/resources/application-test.properties`
 
@@ -139,4 +77,25 @@ spring.flyway.enabled=true
 logging.level.org.hibernate.SQL=debug
 ```
 
-Do **not** define datasource credentials here.
+❌ Do not hardcode datasource credentials.
+
+---
+
+## When Asking for Help
+
+Include:
+
+```bash
+docker ps
+docker context show
+echo $DOCKER_HOST
+colima status
+```
+
+And:
+
+```bash
+./gradlew test --stacktrace --info
+```
+
+Paste the **first `Caused by:` block**.
