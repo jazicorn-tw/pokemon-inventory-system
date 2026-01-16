@@ -55,9 +55,9 @@ See [TESTCONTAINERS](errors/TESTCONTAINERS.md)
 
 ### 3. PostgreSQL
 
-See [POSTGRESQL](errors/POSTGRESQL.md)
+See [CI-POSTGRESQL](CI-POSTGRESQL.md)
 
-See [CI-POSTGRESQL](errors/CI-POSTGRESQL.md)
+See [POSTGRESQL](errors/POSTGRESQL.md)
 
 ### 4. Flyway
 
@@ -66,6 +66,17 @@ See [FLYWAY](errors/FLYWAY.md)
 ### 5. Ryuk (Testcontainers Reaper)
 
 See [RYUK](errors/RYUK.md)
+
+## Java Test Runner Notes
+
+VS Code's Java Test Runner may execute tests outside Gradle.
+To avoid Mockito dynamic-agent warnings during local development,
+we enable:
+
+-XX:+EnableDynamicAgentLoading
+
+Gradle and CI already preload Mockito as a Java agent and do not rely
+on dynamic attachment.
 
 ## Recommended Test Profile
 

@@ -317,10 +317,10 @@ If CI fails but local passes:
 ## Cross-References
 
 * Setup & wiring: `TESTING.md` (this file)
-* Error diagnostics: `./testing/TROUBLESHOOTING.md`
-* Docker issues: `./testing/errors/DOCKER.md`
-* Colima issues (macOS): `./testing/errors/COLIMA.md`
-* Testcontainers issues: `./testing/errors/TESTCONTAINERS.md`
+* Error diagnostics: [CI_TROUBLESHOOTING](CI_TROUBLESHOOTING.md)
+* Docker issues: [DOCKER](errors/DOCKER.md)
+* Colima issues (macOS): [COLIMA](errors/COLIMA.md)
+* Testcontainers issues: [TESTCONTAINERS](errors/TESTCONTAINERS.md)
 
 ## When Tests Fail — Paste This
 

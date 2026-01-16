@@ -1,11 +1,9 @@
+import org.gradle.process.CommandLineArgumentProvider
+
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '4.0.0'
 	id 'io.spring.dependency-management' version '1.1.7'
-}
-
-ext {
-  set("flyway.version", "11.14.1")
 }
 
 group = 'com.pokedex'
@@ -18,62 +16,79 @@ java {
 	}
 }
 
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
-}
-
 repositories {
 	mavenCentral()
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-h2console'
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	// Core Spring Boot
+	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-	// Web
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	// WebClient (PokeAPI)
 	implementation 'org.springframework:spring-webflux'
 
-	// Keep Spring Boot integration
-	implementation "org.springframework.boot:spring-boot-starter-flyway"
-
-	// Force Flyway artifacts to a compatible set
-	implementation "org.flywaydb:flyway-core:11.20.0"
-	runtimeOnly  "org.flywaydb:flyway-database-postgresql:11.20.0"
-
-	// JDBC driver
-	runtimeOnly "org.postgresql:postgresql"
-
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	// Database & migration
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	implementation 'org.flywaydb:flyway-core:11.20.0'
+	runtimeOnly 'org.flywaydb:flyway-database-postgresql:11.20.0'
 
 	// Databases
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
 
+	// Developer experience
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
 	// Testing
-	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.security:spring-security-test'
 
-	// Spring Boot's Testcontainers Support
+	// Mockito
+	testImplementation "org.mockito:mockito-core"
+	testImplementation "org.mockito:mockito-junit-jupiter"
+
+	// Testcontainers
 	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-	testImplementation platform("org.testcontainers:testcontainers-bom:1.20.4")
-	testImplementation "org.testcontainers:junit-jupiter"
-	testImplementation "org.testcontainers:postgresql"
+	testImplementation platform('org.testcontainers:testcontainers-bom:1.20.4')
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:postgresql'
 
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+/**
+ * Adds Mockito as a proper -javaagent for Java 21+.
+ * This is evaluated lazily at execution time, so it reliably reaches the forked test JVM.
+ */
+class MockitoAgentArgumentProvider implements CommandLineArgumentProvider {
+	private final FileCollection testRuntimeClasspath
 
-tasks.named('test') {
+	MockitoAgentArgumentProvider(FileCollection testRuntimeClasspath) {
+		this.testRuntimeClasspath = testRuntimeClasspath
+	}
+
+	@Override
+	Iterable<String> asArguments() {
+		def mockitoCoreJar = testRuntimeClasspath.files.find { it.name ==~ /mockito-core-.*\.jar/ }
+		if (mockitoCoreJar == null) {
+			throw new GradleException("Mockito agent jar not found. Expected mockito-core-*.jar on testRuntimeClasspath.")
+		}
+		return ["-javaagent:${mockitoCoreJar.absolutePath}".toString()]
+	}
+}
+
+tasks.withType(Test).configureEach {
 	useJUnitPlatform()
+
+	// Ensure Mockito -javaagent is always present for the forked JVM
+	jvmArgumentProviders.add(new MockitoAgentArgumentProvider(configurations.testRuntimeClasspath))
+
+	// OPTIONAL: If you want to silence other agent-related noise temporarily (not required once fixed)
+	// jvmArgs "-XX:+EnableDynamicAgentLoading"
 }
