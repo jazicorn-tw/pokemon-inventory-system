@@ -16,6 +16,8 @@ ADRs capture *why* we made a decision, not just *what* we built.
 - **ADR-003** — Testcontainers for integration testing
 - **ADR-004** — Actuator health endpoints + Docker healthchecks
 - **ADR-005** — Phase security implementation (deps first, enforcement later)
+- **ADR-006** - local-dev-experience
+- **ADR-007** - commit-msg
 
 ---
 
