@@ -22,6 +22,7 @@ help:
 
 
 hooks:
+	@bash ./scripts/check-colima.sh
 	@bash ./scripts/install-hooks.sh
 
 # Clean build outputs only.
