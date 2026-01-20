@@ -1,0 +1,37 @@
+# Git metadata (never needed in image)
+.git
+.gitignore
+
+# IDE / editor
+.vscode
+.idea
+*.iml
+*.ipr
+*.iws
+
+# OS junk
+.DS_Store
+
+# Local build outputs (container builds its own)
+build/
+.gradle/
+
+# Logs & temp files
+*.log
+hs_err_pid*
+replay_pid*
+
+# Environment files (never bake secrets)
+.env
+.env.*
+
+# Docs / misc (optional but keeps context small)
+HELP.md
+ARCHITECTURE.md
+architecture/
+
+# Exclude all JARs by default…
+*.jar
+
+# …but ALWAYS include the Gradle wrapper JAR
+!gradle/wrapper/gradle-wrapper.jar
