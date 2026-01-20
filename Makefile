@@ -14,15 +14,14 @@ help:
 	@echo "  make verify     - Doctor + lint + test (good before pushing)"
 	@echo "  make quality    - Doctor + format + clean check (matches CI intent)"
 	@echo "  make bootstrap  - Install hooks + run full local quality gate"
-	@echo "  make hooks      - Install repo-local git hooks"
+	@echo "  make hooks      - Configure repo-local git hooks (macOS: fixes +x)"
 	@echo "  make exec-bits  - Check tracked scripts executable bit (warn locally)"
 	@echo "  make clean      - Clean build outputs only (Gradle clean)"
 	@echo "  make clean-all  - Full local reset (removes .gradle state + clean)"
 	@echo ""
 
-
 hooks:
-	@bash ./scripts/check-colima.sh
+	@bash ./scripts/bootstrap-macos.sh
 	@bash ./scripts/install-hooks.sh
 
 # Clean build outputs only.
@@ -36,7 +35,7 @@ clean:
 clean-all:
 	@rm -rf .gradle
 	@./gradlew --no-daemon clean
-	
+
 # Check executable bits (WARN locally). In CI, set STRICT=1 to fail.
 exec-bits:
 	@if [[ -f ./scripts/check-executable-bits.sh ]]; then \
@@ -47,14 +46,15 @@ exec-bits:
 
 # Local environment sanity (human-facing)
 doctor: clean-all exec-bits
+	@bash ./scripts/check-colima.sh
 	@bash ./scripts/precheck.sh
 	@echo "Doctor complete: environment looks ready."
 
 # Auto-format (mutates files)
-format: 
+format:
 	@rm -rf .gradle/configuration-cache
 	@./gradlew --no-daemon --no-configuration-cache -q spotlessApply
-	
+
 # Static analysis only (fast-ish)
 lint:
 	@./gradlew --no-daemon -q checkstyleMain pmdMain spotbugsMain
@@ -63,7 +63,7 @@ lint:
 quality: doctor
 	@./gradlew --no-daemon -q clean check
 
-# Unit tests (no implicit doctor to avoid double-running; use make test or make verify)
+# Unit tests (includes doctor to avoid "it works on my machine" failures; use make test or make verify)
 test: doctor
 	@./gradlew --no-daemon -q test
 

@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+OS="$(uname -s)"
+if [[ "${OS}" != "Darwin" ]]; then
+  echo "check-colima: non-macOS detected (${OS}); skipping."
+  exit 0
+fi
+
 REQUIRED_MEM_GIB=6
 REQUIRED_CPU=4
 TOLERANCE_GIB=0.25

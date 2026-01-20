@@ -14,6 +14,9 @@ set -euo pipefail
 # CI behavior:
 #   If CI=true/1, this script exits immediately (local convenience only).
 
+# Internal environment checks invoked by `make doctor`.
+# This script is not meant to be called directly by contributors.
+
 say() { printf "%s\n" "$*"; }
 ok()  { say "✅ $*"; }
 warn(){ say "⚠️  $*"; }

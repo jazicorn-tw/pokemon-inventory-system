@@ -1,0 +1,30 @@
+mkdir -p .githooks
+cat > .githooks/commit-msg <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Enforce Conventional Commits via Commitizen (cz).
+# Git passes the commit message file path as $1.
+
+if [[ -z "${1:-}" ]]; then
+  echo "commit-msg: missing commit message file argument" >&2
+  exit 1
+fi
+
+# One-off bypass (use sparingly)
+if [[ "${SKIP_COMMIT_MSG_CHECK:-}" == "1" ]]; then
+  echo "commit-msg: SKIP_COMMIT_MSG_CHECK=1 set; skipping commit message validation."
+  exit 0
+fi
+
+if ! command -v cz >/dev/null 2>&1; then
+  echo "commit-msg: 'cz' not found. Install Commitizen or run commits via 'cz commit'." >&2
+  echo "  Tip: pipx install commitizen" >&2
+  exit 1
+fi
+
+# Validate the commit message file.
+cz check --commit-msg-file "$1"
+EOF
+
+chmod +x .githooks/commit-msg

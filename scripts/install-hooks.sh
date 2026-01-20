@@ -4,19 +4,35 @@ set -euo pipefail
 # Install repo-local git hooks.
 # This keeps hooks versioned and consistent across machines.
 
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-cd "$REPO_ROOT"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "${REPO_ROOT}" ]]; then
+  echo "install-hooks: not in a git repo; aborting."
+  exit 1
+fi
+cd "${REPO_ROOT}"
 
+# Ensure Git uses repo-managed hooks.
 git config core.hooksPath .githooks
 
-# Ensure hooks are executable (prevents "Permission denied" on commit).
-chmod +x .githooks/* 2>/dev/null || true
+# Ensure hook dir exists (helps fresh clones / partial checkouts).
+if [[ ! -d ".githooks" ]]; then
+  echo "install-hooks: .githooks directory not found; nothing to install."
+  exit 0
+fi
+
+# Ensure hooks are executable (Git ignores non-executable hooks).
+# Only chmod regular files to avoid weirdness.
+find .githooks -maxdepth 1 -type f -print0 2>/dev/null | xargs -0 chmod +x 2>/dev/null || true
 
 # Ensure repo scripts are executable (prevents "Permission denied" in make targets).
-chmod +x scripts/*.sh 2>/dev/null || true
+# Only chmod matching files if present.
+if compgen -G "scripts/*.sh" >/dev/null; then
+  chmod +x scripts/*.sh
+fi
 
-echo "Installed git hooks:"
+echo "✅ Installed git hooks:"
 echo "  core.hooksPath = .githooks"
 echo ""
-echo "Tip: bypass once with:"
-echo "  SKIP_QUALITY=1 git commit -m \"...\""
+echo "Bypass (one-off):"
+echo "  SKIP_QUALITY=1 git commit ...          # skip pre-commit quality gate"
+echo "  SKIP_COMMIT_MSG_CHECK=1 git commit ... # skip commit-msg validation"
