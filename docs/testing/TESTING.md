@@ -21,6 +21,18 @@ They must work the same way:
 
 If tests ever require extra steps, the wiring has regressed.
 
+## Why Tests Require Docker
+
+This project intentionally runs integration tests against a real PostgreSQL
+instance using Testcontainers.
+
+This is a deliberate architectural decision to ensure production parity.
+
+See:
+
+- [ADR-001](../adr/ADR-001-database-postgresql.md): Use PostgreSQL across local, test, CI, and production
+- [ADR-002](../adr/ADR-002-testcontainers.md): Use Testcontainers for PostgreSQL-backed integration tests
+
 ## Why Testcontainers (real Postgres) instead of H2
 
 We use Testcontainers + PostgreSQL because it prevents “works in tests, fails in prod” problems:

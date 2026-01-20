@@ -1,5 +1,8 @@
 package com.pokedex.inventory.testinfra;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.BeforeAll;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -29,6 +32,20 @@ public abstract class BaseIntegrationTest {
           .withUsername(POSTGRES_USER)
           .withPassword(POSTGRES_PASSWORD);
 
+  /**
+   * Hook for subclasses to perform additional verification or setup once the container is running.
+   *
+   * <p>Examples (future): - Verify schema state - Seed reference data - Assert required extensions
+   * exist
+   */
+  protected abstract void onContainerReady();
+
+  @BeforeAll
+  static void verifyContainerIsRunning() {
+    assertTrue(
+        POSTGRES.isRunning(), "PostgreSQL Testcontainer should be running for integration tests.");
+  }
+
   @DynamicPropertySource
   static void registerProperties(DynamicPropertyRegistry registry) {
 
@@ -41,11 +58,7 @@ public abstract class BaseIntegrationTest {
     registry.add("spring.flyway.enabled", () -> "true");
     registry.add(
         "spring.flyway.locations",
-        () -> System.getenv().getOrDefault(
-            "FLYWAY_LOCATIONS",
-            "classpath:db/migration"
-        )
-    );
+        () -> System.getenv().getOrDefault("FLYWAY_LOCATIONS", "classpath:db/migration"));
 
     // JPA
     registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");

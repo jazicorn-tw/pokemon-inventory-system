@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+	<!--
+	Starter exclusions for framework-heavy Spring apps.
+
+	Goal: reduce false positives without hiding real issues.
+	As the project matures, prefer narrow exclusions and/or annotate
+	intentional cases with @SuppressFBWarnings.
+	-->
+
+	<!-- Spring will inject fields/constructors; SpotBugs sometimes flags these as "exposed representation" etc. -->
+	<Match>
+		<Class name="~.*\\.config\\..*"/>
+	</Match>
+
+	<!-- DTOs / request/response models often have public fields or setters by design. -->
+	<Match>
+		<Class name="~.*\\.(dto|model|request|response)\\..*"/>
+	</Match>
+
+	<!-- JPA entities: equals/hashCode and lazy fields can trigger noisy warnings. -->
+	<Match>
+		<Class name="~.*\\.(entity|entities|domain)\\..*"/>
+		<!-- Common entity-related noise; keep broad at first, then narrow if you want stricter. -->
+		<Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2,EQ_DOESNT_OVERRIDE_EQUALS,HE_EQUALS_USE_HASHCODE"/>
+	</Match>
+
+	<!-- Lombok-generated methods can trip warnings depending on patterns. -->
+	<Match>
+		<Class name="~.*\\..*\\$.*"/>
+	</Match>
+</FindBugsFilter>

@@ -1,27 +1,78 @@
 <!-- markdownlint-disable-file MD036 -->
 # 🔰 Phase 0 — Project Skeleton (v0.0.1)
 
-> Goal: set up a **running Spring Boot app + test harness** before any domain logic.
+> Goal: establish a **production-realistic Spring Boot baseline** with a verified test harness **before any domain logic**.
+
+---
+
+## ⚠️ Test Requirement (Read First)
+
+**Phase 0 tests REQUIRE Docker (or Colima on macOS).**
+
+This project uses **Testcontainers with PostgreSQL** starting in Phase 0 to ensure:
+
+* production-parity database behavior
+* early detection of schema/migration issues
+* no divergence between test and real environments
+
+If Docker/Colima is not running, `./gradlew test` **will fail**.
+
+---
 
 ## ✅ Purpose
 
-Set up the Spring Boot application and testing environment so future phases can be built using **TDD** with confidence.
+Phase 0 establishes the **non-negotiable foundation** of the system:
+
+* Spring Boot application boots cleanly
+* PostgreSQL is wired consistently across environments
+* Flyway is active from day one
+* HTTP + health endpoints are verifiable
+* Tests fail for real reasons (not misconfiguration)
+
+This phase intentionally includes **infrastructure weight early** to avoid later rewrites.
+
+---
+
+## 🎯 Outcomes
 
 By the end of Phase 0 you will have:
 
-- A Spring Boot app that starts successfully
-- A passing **context-load** test
-- A verified `GET /ping` endpoint that returns `pong`
-- A clean baseline for Phase 1 domain work
+* A Spring Boot app that starts successfully
+* A passing **context-load** test backed by PostgreSQL (Testcontainers)
+* A verified `GET /ping` endpoint that returns `pong`
+* A verified `GET /actuator/health` endpoint that returns `UP`
+* A clean baseline for Phase 1 domain work
 
-## 🧪 TDD Steps
+---
 
-### 1. Create a context-load test (`InventoryServiceApplicationTests`)
+## 🧪 TDD Flow (Phase 0)
 
-This test proves Spring can bootstrap your app (component scan, auto-config, dependency wiring).
+> 🐳 Before running any tests:
+>
+> ```bash
+> docker ps
+> ```
+>
+> If this fails (macOS):
+>
+> ```bash
+> colima start
+> docker context use colima
+> ```
+
+---
+
+### 1️⃣ Context Load Test (Infrastructure Proof)
+
+This test proves that:
+
+* component scanning works
+* auto-configuration is valid
+* database + Flyway wiring is correct
+* the application can **actually start**
 
 **File**
-`src/test/java/com/pokedex/inventory/InventoryServiceApplicationTests.java`
+`src/test/java/com/pokedex/inventory/InventoryApplicationTests.java`
 
 ```java
 package com.pokedex.inventory;
@@ -30,22 +81,23 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class InventoryServiceApplicationTests {
+class InventoryApplicationTests {
 
     @Test
     void contextLoads() {
-        // If the application context fails to start, this test fails.
+        // Fails if Spring, DB, or Flyway are misconfigured
     }
 }
 ```
 
-✅ **Expected result**: test passes without adding any controllers/services.
+✅ **Expected result**: passes only if Docker + Testcontainers are working.
 
 ---
 
-### 2. Write the failing test for `GET /ping`
+### 2️⃣ Failing HTTP Test — `/ping`
 
-Use MockMvc to test the HTTP layer without starting a full server.
+This test verifies the HTTP boundary **without** starting a full server
+and **without touching the database**.
 
 **File**
 `src/test/java/com/pokedex/inventory/ping/PingControllerTest.java`
@@ -77,11 +129,11 @@ class PingControllerTest {
 }
 ```
 
-✅ **Expected result** (at first): fails because `PingController` doesn’t exist yet.
+❌ **Expected result initially**: fails — controller doesn’t exist yet.
 
 ---
 
-### 3. Implement the minimal controller to satisfy the test
+### 3️⃣ Minimal Controller (Green)
 
 **File**
 `src/main/java/com/pokedex/inventory/ping/PingController.java`
@@ -102,62 +154,33 @@ class PingController {
 }
 ```
 
-✅ **Expected result**: `PingControllerTest` now passes.
+✅ **Expected result**: test passes.
 
-## 📦 Dependencies (Phase 0)
+---
 
-You listed these as the Phase 0 baseline:
+## 📦 Dependencies (Phase 0 Baseline)
 
-- Spring Boot Web
-- Spring Boot Data JPA
-- Validation
-- H2 DB
-- Spring Boot Test
-- AssertJ
-- Mockito
-
-### Gradle snippet (example)
-
-> If you already have these, keep yours — this is just a reference.
+Phase 0 intentionally includes **real infrastructure dependencies**.
 
 ```gradle
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-    runtimeOnly 'com.h2database:h2'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly 'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
 }
 ```
 
-**Notes**
+---
 
-- `spring-boot-starter-test` already bundles JUnit 5, AssertJ, Mockito, and Spring Test (MockMvc).
-- H2 is fine for Phase 0/1 local dev; you can switch to PostgreSQL later.
-
-## 🗂️ Suggested folder structure (end of Phase 0)
-
-```bash
-src/
-├─ main/
-│  ├─ java/
-│  │  └─ com/pokedex/inventory/
-│  │     ├─ InventoryServiceApplication.java
-│  │     └─ ping/
-│  │        └─ PingController.java
-│  └─ resources/
-│     └─ application.properties
-└─ test/
-   └─ java/
-      └─ com/pokedex/inventory/
-         ├─ InventoryServiceApplicationTests.java
-         └─ ping/
-            └─ PingControllerTest.java
-```
-
-## ⚙️ Minimal configuration (H2)
+## ⚙️ Configuration (PostgreSQL-First)
 
 **File**
 `src/main/resources/application.properties`
@@ -165,58 +188,58 @@ src/
 ```properties
 spring.application.name=inventory-service
 
-# H2 (dev)
-spring.datasource.url=jdbc:h2:mem:inventory;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
-spring.datasource.username=sa
-spring.datasource.password=
-spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.url=${SPRING_DATASOURCE_URL}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
 
-# JPA
-spring.jpa.hibernate.ddl-auto=create-drop
-spring.jpa.show-sql=false
-spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.open-in-view=false
+spring.jpa.hibernate.ddl-auto=validate
 
-# H2 console (optional)
-spring.h2.console.enabled=true
-spring.h2.console.path=/h2-console
+spring.flyway.enabled=true
+spring.flyway.locations=${FLYWAY_LOCATIONS:classpath:db/migration}
+
+management.endpoints.web.exposure.include=health,info
 ```
 
-**Why `MODE=PostgreSQL`?**
-It reduces surprises later when you migrate to PostgreSQL (especially around SQL syntax and casing).
+---
 
-## ▶️ Run commands
-
-### Run tests
+## ▶️ Runbook
 
 ```bash
+docker compose up -d postgres
 ./gradlew test
-```
-
-### Run the app
-
-```bash
 ./gradlew bootRun
 ```
 
-### Quick manual check
-
 ```bash
 curl -i http://localhost:8080/ping
-# HTTP/1.1 200
-# pong
+curl -i http://localhost:8080/actuator/health
 ```
+
+---
 
 ## ✅ Definition of Done (Phase 0)
 
-- [ ] `InventoryServiceApplicationTests` passes (`contextLoads`)
-- [ ] `PingControllerTest` passes (expects `"pong"`)
-- [ ] App boots cleanly with no extra domain logic
-- [ ] `curl /ping` returns `pong`
+* [ ] Docker/Colima running
+* [ ] `contextLoads()` passes using Testcontainers PostgreSQL
+* [ ] `PingControllerTest` passes
+* [ ] App boots cleanly
+* [ ] `/ping` returns `pong`
+* [ ] `/actuator/health` returns `UP`
 
-## 🔜 Next (Phase 1 preview)
+---
 
-Once Phase 0 is green, Phase 1 can start safely:
+## 🧯 Troubleshooting (Phase 0)
 
-- Introduce the first domain object (Trainer or Inventory item)
-- Add repository + service + controller via red → green → refactor
-- Add Flyway migrations once you move beyond in-memory prototyping
+```bash
+unset DOCKER_HOST
+docker context use colima
+```
+
+See `DOCKER.md`, `COLIMA.md`, and `TROUBLESHOOTING.md`.
+
+---
+
+## 🔜 Next — Phase 1 Preview
+
+With a verified skeleton in place, Phase 1 can focus purely on **domain logic** without infrastructure refactors.

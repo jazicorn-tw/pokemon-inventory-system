@@ -1,9 +1,18 @@
 import org.gradle.process.CommandLineArgumentProvider
 
+
 plugins {
-	id 'java'
-	id 'org.springframework.boot' version '4.0.0'
-	id 'io.spring.dependency-management' version '1.1.7'
+  id 'java'
+  id 'org.springframework.boot' version '4.0.0'
+  id 'io.spring.dependency-management' version '1.1.7'
+
+  // ===============================
+  // Formatting / Linting / Static Analysis
+  // ===============================
+  id 'com.diffplug.spotless' version '6.25.0'   // Google Java Format (Prettier-equivalent)
+  id 'checkstyle'
+  id 'pmd'
+  id 'com.github.spotbugs' version '6.0.26'
 }
 
 group = 'com.pokedex'
@@ -11,55 +20,63 @@ version = '0.0.1-SNAPSHOT'
 description = 'A Spring Boot 4 API for trainers to manage their Pokémon, trade with others, and participate in a marketplace - powered by PokeAPI and built with TDD'
 
 java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
-	}
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
 }
 
 repositories {
-	mavenCentral()
+  mavenCentral()
 }
 
 dependencies {
-	// Core Spring Boot
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+  // ===============================
+  // Core Spring Boot
+  // ===============================
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+  implementation 'org.springframework.boot:spring-boot-starter-validation'
+  implementation 'org.springframework.boot:spring-boot-starter-security'
+  implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-	// WebClient (PokeAPI)
-	implementation 'org.springframework:spring-webflux'
+  // WebClient (PokeAPI)
+  implementation 'org.springframework:spring-webflux'
 
-	// Database & migration
-	implementation 'org.springframework.boot:spring-boot-starter-flyway'
-	implementation 'org.flywaydb:flyway-core:11.20.0'
-	runtimeOnly 'org.flywaydb:flyway-database-postgresql:11.20.0'
+  // ===============================
+  // Database & migration
+  // ===============================
+  implementation 'org.springframework.boot:spring-boot-starter-flyway'
+  implementation 'org.flywaydb:flyway-core:11.20.0'
+  runtimeOnly 'org.flywaydb:flyway-database-postgresql:11.20.0'
 
-	// Databases
-	runtimeOnly 'com.h2database:h2'
-	runtimeOnly 'org.postgresql:postgresql'
+  // Databases
+  runtimeOnly 'com.h2database:h2'
+  runtimeOnly 'org.postgresql:postgresql'
 
-	// Developer experience
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+  // ===============================
+  // Developer experience
+  // ===============================
+  developmentOnly 'org.springframework.boot:spring-boot-devtools'
+  annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
-	// Testing
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testImplementation 'org.springframework.security:spring-security-test'
+  // ===============================
+  // Testing
+  // ===============================
+  testImplementation 'org.springframework.boot:spring-boot-starter-test'
+  testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+  testImplementation 'org.springframework.security:spring-security-test'
 
-	// Mockito
-	testImplementation "org.mockito:mockito-core"
-	testImplementation "org.mockito:mockito-junit-jupiter"
+  // Mockito
+  testImplementation 'org.mockito:mockito-core'
+  testImplementation 'org.mockito:mockito-junit-jupiter'
 
-	// Testcontainers
-	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
-	testImplementation platform('org.testcontainers:testcontainers-bom:1.20.4')
-	testImplementation 'org.testcontainers:junit-jupiter'
-	testImplementation 'org.testcontainers:postgresql'
+  // Testcontainers
+  testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+  testImplementation platform('org.testcontainers:testcontainers-bom:1.20.4')
+  testImplementation 'org.testcontainers:junit-jupiter'
+  testImplementation 'org.testcontainers:postgresql'
 
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 /**
@@ -67,28 +84,136 @@ dependencies {
  * This is evaluated lazily at execution time, so it reliably reaches the forked test JVM.
  */
 class MockitoAgentArgumentProvider implements CommandLineArgumentProvider {
-	private final FileCollection testRuntimeClasspath
+  private final FileCollection testRuntimeClasspath
 
-	MockitoAgentArgumentProvider(FileCollection testRuntimeClasspath) {
-		this.testRuntimeClasspath = testRuntimeClasspath
-	}
+  MockitoAgentArgumentProvider(FileCollection testRuntimeClasspath) {
+    this.testRuntimeClasspath = testRuntimeClasspath
+  }
 
-	@Override
-	Iterable<String> asArguments() {
-		def mockitoCoreJar = testRuntimeClasspath.files.find { it.name ==~ /mockito-core-.*\.jar/ }
-		if (mockitoCoreJar == null) {
-			throw new GradleException("Mockito agent jar not found. Expected mockito-core-*.jar on testRuntimeClasspath.")
-		}
-		return ["-javaagent:${mockitoCoreJar.absolutePath}".toString()]
-	}
+  @Override
+  Iterable<String> asArguments() {
+    def mockitoCoreJar = testRuntimeClasspath.files.find { it.name ==~ /mockito-core-.*\.jar/ }
+    if (mockitoCoreJar == null) {
+      throw new GradleException(
+      "Mockito agent jar not found. Expected mockito-core-*.jar on testRuntimeClasspath."
+      )
+    }
+    return [
+      "-javaagent:${mockitoCoreJar.absolutePath}".toString()
+    ]
+  }
 }
 
 tasks.withType(Test).configureEach {
-	useJUnitPlatform()
+  useJUnitPlatform()
 
-	// Ensure Mockito -javaagent is always present for the forked JVM
-	jvmArgumentProviders.add(new MockitoAgentArgumentProvider(configurations.testRuntimeClasspath))
+  // Ensure Mockito -javaagent is always present for the forked JVM
+  jvmArgumentProviders.add(
+      new MockitoAgentArgumentProvider(configurations.testRuntimeClasspath)
+      )
 
-	// OPTIONAL: If you want to silence other agent-related noise temporarily (not required once fixed)
-	// jvmArgs "-XX:+EnableDynamicAgentLoading"
+  // OPTIONAL (not required once fixed):
+  // jvmArgs "-XX:+EnableDynamicAgentLoading"
 }
+
+// ===============================
+// Formatting (Google Java Format via Spotless)
+// ===============================
+// Usage:
+//   ./gradlew spotlessApply   # auto-format
+//   ./gradlew spotlessCheck   # verify formatting (CI-safe)
+//
+// Optional: integrate into ./gradlew check automatically via:
+//   tasks.named("check") { dependsOn("spotlessCheck") }
+spotless {
+  java {
+    // Keep the version pinned for reproducibility.
+    googleJavaFormat('1.19.2')
+    // Format all Java sources (main + test + any extra source sets under src/)
+    target 'src/**/*.java'
+  }
+
+  // Keep Gradle files tidy WITHOUT Groovy-Eclipse (avoids OSGi resolver warnings)
+  groovyGradle {
+    target '*.gradle', 'gradle/**/*.gradle'
+
+    trimTrailingWhitespace()
+    endWithNewline()
+    indentWithSpaces(2)
+  }
+}
+
+// ===============================
+// Linting / Static Analysis
+// ===============================
+
+checkstyle {
+  toolVersion = '10.17.0'
+  ignoreFailures = false
+
+  // Commit config to repo at config/checkstyle/checkstyle.xml
+  configFile = file("$rootDir/config/checkstyle/checkstyle.xml")
+  configProperties = [
+    'configDir': file("$rootDir/config/checkstyle")
+  ]
+}
+
+pmd {
+  toolVersion = '7.5.0'
+  consoleOutput = true
+  ignoreFailures = false
+
+  // High-signal rulesets (avoid noisy design rules early)
+  ruleSets = [
+    'category/java/bestpractices.xml',
+    'category/java/errorprone.xml'
+  ]
+}
+
+spotbugs {
+  toolVersion = '4.8.6'
+  ignoreFailures = false
+}
+
+tasks.withType(Checkstyle).configureEach {
+  reports {
+    xml.required = true
+    html.required = true
+  }
+}
+
+tasks.withType(Pmd).configureEach {
+  reports {
+    xml.required = true
+    html.required = true
+  }
+}
+
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
+  reports {
+    xml.required = true
+    html.required = true
+  }
+
+  // Thorough scan, still practical
+  effort.set(com.github.spotbugs.snom.Effort.MAX)
+
+  // WORKAROUND: avoids Groovy enum conversion bug
+  reportLevel.set(com.github.spotbugs.snom.Confidence.values()[0]) // LOW
+
+  // NOTE:
+  // Do NOT manually wire classes/sourceDirs/classpath in SpotBugs 6.x.
+  // The plugin configures spotbugsMain/spotbugsTest automatically, and
+  // these properties/types vary across versions (causes setFrom() errors).
+
+  // Optional: add once false positives appear
+  // excludeFilter.set(file("$rootDir/config/spotbugs/exclude.xml"))
+}
+
+// Optional knobs if tests get noisy early:
+// tasks.named("checkstyleTest") { enabled = false }
+// tasks.named("pmdTest") { enabled = false }
+// tasks.named("spotbugsTest") { enabled = false }
+
+// If you want formatting enforced automatically in CI/builds:
+// tasks.named("check") { dependsOn("spotlessCheck") }

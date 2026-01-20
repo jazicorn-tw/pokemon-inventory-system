@@ -1,30 +1,32 @@
 package com.pokedex.inventory;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
 @SpringBootTest
 @AutoConfigureMockMvc
 class SecurityConfigTest {
 
-    @Autowired
-    MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-    @Test
-    void ping_is_public() throws Exception {
-        mockMvc.perform(get("/ping"))
-            .andExpect(status().isOk());
-    }
+  @Test
+  void pingIsPublicReturns200() throws Exception {
+    var result = mockMvc.perform(get("/ping")).andReturn();
+    assertEquals(200, result.getResponse().getStatus(), "GET /ping should be publicly accessible.");
+  }
 
-    @Test
-    void actuator_health_is_public() throws Exception {
-        mockMvc.perform(get("/actuator/health"))
-            .andExpect(status().isOk());
-    }
+  @Test
+  void actuatorHealthIsPublicReturns200() throws Exception {
+    var result = mockMvc.perform(get("/actuator/health")).andReturn();
+    assertEquals(
+        200,
+        result.getResponse().getStatus(),
+        "GET /actuator/health should be publicly accessible.");
+  }
 }

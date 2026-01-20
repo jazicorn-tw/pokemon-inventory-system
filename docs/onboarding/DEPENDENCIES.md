@@ -1,29 +1,44 @@
 # 📦 Project Dependencies Overview
 
-This project uses a fully modern **Spring Boot 4** stack with everything you need for:
+This project uses a modern **Spring Boot 4** stack focused on **production parity** and
+realistic infrastructure from day one.
 
-- API development
-- Integration with external APIs [**PokeAPI**](https://pokeapi.co/docs/v2)
-- JPA / Hibernate
+The system is designed for:
+
+- REST API development
+- External API integration (**PokeAPI**)
+- JPA / Hibernate persistence
 - Security and JWT authentication
-- Integration testing with [**Testcontainers**](https://java.testcontainers.org/)
-- API documentation (**Swagger / SpringDoc**)
+- Docker-based integration testing
+- API documentation (OpenAPI / Swagger)
 - DTO mapping
 - Database migrations
-- Hot reload for development
-- Database switching (**H2 ↔ PostgreSQL**)
+- Hot reload during development
+- PostgreSQL across **local, test, and production** environments
 
-Below is the complete list of dependencies included in `build.gradle`.
+> ❗️**Note:**  
+> This project intentionally **does NOT use H2**.  
+> PostgreSQL is used everywhere to avoid environment drift and hidden bugs.
+
+Below is the complete dependency set used in `build.gradle`.
 
 ---
 
 ## 🧩 Core Spring Boot Dependencies
 
-### REST API & MVC
+### REST API (Spring MVC)
 
 ```groovy
 implementation 'org.springframework.boot:spring-boot-starter-web'
 ```
+
+Used for:
+
+- Controllers
+- Request/response handling
+- Validation & exception mapping
+
+---
 
 ### Data Persistence (JPA / Hibernate)
 
@@ -31,27 +46,46 @@ implementation 'org.springframework.boot:spring-boot-starter-web'
 implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 ```
 
-### Validation
+Provides:
+
+- Hibernate ORM
+- Spring Data repositories
+- Transaction management
+
+---
+
+### Validation (Jakarta Validation)
 
 ```groovy
 implementation 'org.springframework.boot:spring-boot-starter-validation'
 ```
 
-### Actuator (Health & Metrics)
+---
+
+### Actuator (Health & Operability)
 
 ```groovy
 implementation 'org.springframework.boot:spring-boot-starter-actuator'
 ```
 
+Used for:
+
+- `/actuator/health`
+- Liveness & readiness probes
+- Docker / orchestration health checks
+
 ---
 
-## 🌐 WebClient / PokeAPI Integration
+## 🌐 External API Integration
 
-### WebFlux (required for WebClient)
+### WebClient (via WebFlux)
 
 ```groovy
 implementation 'org.springframework.boot:spring-boot-starter-webflux'
 ```
+
+> WebFlux is included **only** to use `WebClient` for outbound HTTP calls.  
+> The application itself remains **Spring MVC–based** (non-reactive).
 
 ---
 
@@ -63,7 +97,9 @@ implementation 'org.springframework.boot:spring-boot-starter-webflux'
 implementation 'org.springframework.boot:spring-boot-starter-security'
 ```
 
-### JWT (JSON Web Token) – JJWT
+---
+
+### JWT (JJWT)
 
 ```groovy
 implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
@@ -71,27 +107,30 @@ runtimeOnly   'io.jsonwebtoken:jjwt-impl:0.12.5'
 runtimeOnly   'io.jsonwebtoken:jjwt-jackson:0.12.5'
 ```
 
+Used for:
+
+- Stateless authentication
+- Access & refresh tokens
+- Signature validation
+
 ---
 
-## 🧪 Testing Dependencies
+## 🧪 Testing
 
-### Spring Boot Test
+### Spring Boot Test Stack
 
 ```groovy
 testImplementation 'org.springframework.boot:spring-boot-starter-test'
 ```
 
-### AssertJ (fluent assertions)
+Includes:
 
-```groovy
-testImplementation 'org.assertj:assertj-core:3.26.0'
-```
+- JUnit Jupiter
+- AssertJ
+- Mockito
+- Spring Test / MockMvc
 
-### Mockito (mocking)
-
-```groovy
-testImplementation 'org.mockito:mockito-core:5.12.0'
-```
+---
 
 ### Spring Security Test
 
@@ -99,30 +138,36 @@ testImplementation 'org.mockito:mockito-core:5.12.0'
 testImplementation 'org.springframework.security:spring-security-test'
 ```
 
-### Testcontainers (Integration Testing with Docker)
+---
 
-For running PostgreSQL in an isolated environment:
+### Testcontainers (PostgreSQL)
 
 ```groovy
 testImplementation 'org.testcontainers:junit-jupiter:1.20.3'
 testImplementation 'org.testcontainers:postgresql:1.20.3'
 ```
 
+Used for:
+
+- Real PostgreSQL integration tests
+- CI-safe database provisioning
+- Production-like behavior
+
 ---
 
-## 🗄️ Database Drivers
+## 🗄️ Database
 
-### H2 (Development / In-Memory DB)
-
-```groovy
-runtimeOnly 'com.h2database:h2'
-```
-
-### PostgreSQL (Production + Testcontainers)
+### PostgreSQL (All Environments)
 
 ```groovy
 runtimeOnly 'org.postgresql:postgresql'
 ```
+
+Used in:
+
+- Local development (Docker / native)
+- Integration tests (Testcontainers)
+- Production
 
 ---
 
@@ -134,6 +179,11 @@ runtimeOnly 'org.postgresql:postgresql'
 developmentOnly 'org.springframework.boot:spring-boot-devtools'
 ```
 
+Provides:
+
+- Hot restart
+- Faster feedback loops during development
+
 ---
 
 ## 🧭 API Documentation
@@ -142,6 +192,12 @@ developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
 ```groovy
 implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+```
+
+Swagger UI available at:
+
+```bash
+/swagger-ui/index.html
 ```
 
 ---
@@ -155,6 +211,12 @@ implementation 'org.mapstruct:mapstruct:1.6.0'
 annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.0'
 ```
 
+Benefits:
+
+- Compile-time safety
+- Clear entity ↔ DTO boundaries
+- No reflection overhead
+
 ---
 
 ## 📅 Database Migrations
@@ -165,11 +227,17 @@ annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.0'
 implementation 'org.flywaydb:flyway-core'
 ```
 
+Used for:
+
+- Versioned schema migrations
+- Startup validation
+- Repeatable migrations
+
 ---
 
-## 📊 JSON Logging
+## 📊 Structured JSON Logging
 
-### Logback JSON appenders
+### Logback JSON
 
 ```groovy
 implementation 'ch.qos.logback.contrib:logback-json-classic:0.1.5'
@@ -178,9 +246,7 @@ implementation 'ch.qos.logback.contrib:logback-jackson:0.1.5'
 
 ---
 
-## ⏱ Java Time Module
-
-### Jackson JSR-310
+## ⏱ Jackson Java Time Support
 
 ```groovy
 implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
@@ -190,7 +256,7 @@ implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
 ## 🧰 Optional Tooling
 
-### Lombok (only if you decide to use it)
+### Lombok (Optional)
 
 ```groovy
 compileOnly 'org.projectlombok:lombok'
@@ -201,54 +267,14 @@ testAnnotationProcessor 'org.projectlombok:lombok'
 
 ---
 
-## 🚀 Your Project Is Fully Equipped
+## 🚀 Summary
 
-Your project now has support for:
+This dependency set intentionally prioritizes:
 
-### ✔ API Development
+- PostgreSQL everywhere (no H2)
+- Production parity across environments
+- Strong testing via Testcontainers
+- Clear architectural boundaries
+- Enterprise-ready observability and security
 
-Complete Spring MVC stack for building REST endpoints.
-
-### ✔ PokeAPI Integration
-
-WebClient (WebFlux) for external API calls.
-
-### ✔ JPA / Hibernate
-
-Entity modeling, repositories, transactional boundaries.
-
-### ✔ Security + JWT
-
-Spring Security foundation + JJWT for authentication and authorization.
-
-### ✔ Testcontainers Integration Tests
-
-Full Docker-based integration testing with real PostgreSQL.
-
-### ✔ Swagger (SpringDoc)
-
-Interactive API documentation available at:
-
-```bash
-/swagger-ui.html
-```
-
-### ✔ DTO Mapping (MapStruct)
-
-Cleaner, maintainable entity-to-DTO transformations.
-
-### ✔ JSON Logging
-
-Structured logs for observability and cloud deployments.
-
-### ✔ Migrations (Flyway)
-
-Version-controlled database schema evolution.
-
-### ✔ DevTools Hot Restart
-
-Improved developer experience.
-
-### ✔ H2 + Postgres Switching
-
-Lightweight local development with production-ready database support.
+This makes the project realistic, interview-ready, and production-aligned.

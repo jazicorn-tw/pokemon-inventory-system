@@ -1,11 +1,14 @@
 <!-- markdownlint-disable-file MD024 -->
-# Phases
-
----
+# 📦 Delivery Phases & Roadmap
 
 ## 🎒 Pokémon Trainer Inventory Service
 
-*A Spring Boot API for managing trainers, their Pokémon, trades, and marketplace listings — built with Test-Driven Development.*
+_A Spring Boot 4 backend for managing trainers, Pokémon inventories, trades, and a marketplace — built with strict Test‑Driven Development (TDD)._
+
+This document is the **authoritative delivery contract** for the system.
+Each phase is completed **only** when its release criteria are met.
+
+For design rationale and trade‑offs, see **./ARCHITECTURE.md**.
 
 ---
 
@@ -17,7 +20,7 @@ The **Pokémon Trainer Inventory Service** is a Spring Boot 4 backend that lets 
 * Add Pokémon to their inventory (validated via PokeAPI)
 * Trade Pokémon with other trainers
 * List Pokémon for sale and buy from other trainers
-* Authenticate with JWT (later phase)
+* Authenticate with JWT
 
 The project is built using **TDD (Test-Driven Development)** at all phases.
 Each version introduces new functionality only after writing failing tests first.
@@ -26,16 +29,16 @@ Each version introduces new functionality only after writing failing tests first
 
 ## 🧩 Tech Stack
 
-| Area          | Technology                                             |
-| ------------- | ------------------------------------------------------ |
-| Language      | Java 21 (or 17)                                        |
-| Framework     | Spring Boot 4.0                                        |
-| Database      | H2 (dev), PostgreSQL (prod/testcontainers)             |
-| HTTP Client   | WebClient (Spring WebFlux)                             |
-| Auth          | Spring Security + JWT (JJWT)                           |
-| Testing       | JUnit 5, AssertJ, Mockito, Spring Test, Testcontainers |
-| Documentation | SpringDoc OpenAPI (Swagger)                            |
-| Mapping       | MapStruct                                              |
+| Area          | Technology                                                         |
+| ------------- | ------------------------------------------------------------------ |
+| Language      | Java 21                                                            |
+| Framework     | Spring Boot 4.0.x                                                  |
+| Database      | PostgreSQL (local/dev/prod), Testcontainers (tests)                |
+| HTTP Client   | WebClient (Spring WebFlux)                                         |
+| Auth          | Spring Security + JWT (JJWT)                                       |
+| Testing       | JUnit 5, AssertJ, Mockito, Spring Test, Testcontainers             |
+| Documentation | SpringDoc OpenAPI (Swagger)                                        |
+| Mapping       | MapStruct                                                          |
 
 ---
 
@@ -51,230 +54,289 @@ No feature is added without tests.
 
 ---
 
-## 🗂 Version Roadmap (TDD Phases)
+## 🧪 Global TDD Rules
 
-This roadmap defines the evolution of the system.
-Each phase produces a tagged release (e.g., `v0.1.0`, `v0.2.0`, etc.).
+* Every feature starts with failing tests
+* Minimal implementation to pass tests
+* Refactors only happen with green tests
+* No phase is complete without release criteria
 
 ---
 
 ## 🔰 Phase 0 — Project Skeleton (v0.0.1)
 
-### **Purpose**
+> ⚠️ Phase 0 tests require Docker (or Colima on macOS) due to Testcontainers usage.
 
-Set up the Spring Boot application & testing environment before any domain logic.
+* See [`PHASE_0.md`](PHASE_0.md) for full details.
 
-### **TDD Steps**
+### Purpose
 
-* Create context-load test (`InventoryServiceApplicationTests`)
-* Add `GET /ping` endpoint with a test that expects `"pong"`
-* Implement minimal controller to satisfy test
+Establish a runnable, testable Spring Boot service with production-aware scaffolding and infrastructure parity.
 
-### **Dependencies**
+### Phase-Gate ADRs
+
+The following architectural decisions must be **accepted and committed** before Phase 0 is considered complete:
+
+* **ADR-001** — PostgreSQL baseline (no H2)
+* **ADR-002** — Flyway for schema migrations
+* **ADR-003** — Testcontainers for integration testing
+* **ADR-004** — Actuator health endpoints + Docker healthchecks
+* **ADR-005** — Security phased approach (dependencies first, enforcement later)
+
+### TDD Steps
+
+* Create context-load test (validates Spring + DB + Flyway wiring)
+* Add `GET /ping` endpoint test (`pong`)
+* Verify Actuator health endpoint (`/actuator/health`)
+* Add Dockerfile and Docker Compose healthchecks
+
+## 📦 Dependencies (Phase 0)
+
+Baseline:
 
 * Spring Boot Web
 * Spring Boot Data JPA
 * Validation
-* H2 DB
+* Actuator
+* PostgreSQL driver
+* Flyway
 * Spring Boot Test
-* AssertJ
-* Mockito
+* Testcontainers (PostgreSQL + JUnit Jupiter)
+
+### Release Criteria
+
+* Docker/Colima running locally
+* Application boots locally
+* `./gradlew test` passes (Testcontainers PostgreSQL)
+* `/ping` returns `"pong"`
+* `/actuator/health` reports `UP`
+* Docker healthcheck passes
 
 ---
 
 ## 🐣 Phase 1 — Trainers & Pokémon Inventory (v0.1.0)
 
-### **Purpose**
+### Purpose
 
-Enable trainers to register accounts and store Pokémon in their inventory.
+Introduce the core domain: trainers and owned Pokémon.
 
-### **TDD Steps**
+### TDD Steps
 
 * Write service tests for `TrainerService`
-* Implement trainer domain
+* Implement `Trainer` domain entity
 * Write controller tests for `POST /api/trainers`
-* Add `OwnedPokemon` tests
+* Add `OwnedPokemon` entity tests
 * Validate trainer existence when adding Pokémon
 * Write controller tests for `/api/pokemon` endpoints
 
-### **Resulting Features**
+### Resulting Features
 
 * Create trainer
-* Add/Delete/Get Pokémon
-* List trainer Pokémon
-* Validation & error responses
+* Add, remove, list Pokémon
+* Validation & structured error responses
+
+### Release Criteria
+
+* Trainers can be created and retrieved
+* Pokémon ownership enforced
+* Invalid trainer references rejected
 
 ---
 
 ## 🧬 Phase 2 — PokeAPI Species Validation (v0.2.0)
 
-### **Purpose**
+### Purpose
 
-Verify Pokémon species using [https://pokeapi.co/api/v2](https://pokeapi.co/api/v2) before adding to trainer inventory.
+Ensure Pokémon species are valid before adding to inventory.
 
-### **TDD Steps**
+### TDD Steps
 
 * Mock `PokeApiClient` responses
-* Write failing tests ensuring a Pokémon cannot be added if species doesn’t exist
-* Implement WebClient-based API client
+* Write failing tests for invalid species
+* Implement WebClient‑based PokeAPI client
 * Add DTO mapping tests
 
-### **New Dependency**
+> WebClient is used in a **blocking** manner (`.block()`).
+> Full reactive architecture is intentionally deferred.
 
-* `spring-boot-starter-webflux` for WebClient
+### New Dependency
 
-### **Result**
+* `spring-boot-starter-webflux`
 
-Adding Pokémon now requires valid PokeAPI species.
+### Release Criteria
+
+* Invalid species cannot be added
+* External API failures handled gracefully
+* PokeAPI fully mocked in tests
 
 ---
 
 ## ⚔️ Phase 3 — Trading System (v0.3.0)
 
-### **Purpose**
+### Purpose
 
 Enable Pokémon trades between trainers.
 
-### **TDD Steps**
+### TDD Steps
 
-* Write tests for creating trades
-
+* Write tests for trade creation
   * Ownership validation
-  * Pokémon lists
-* Write failing tests for accepting a trade
-
-  * Ownership swaps correctly
-* Write tests for rejecting/canceling trades
+  * Pokémon list validation
+* Write failing tests for accepting trades
+  * Atomic ownership swap
+* Write tests for rejecting and canceling trades
 * Add controller tests for `/api/trades`
 
-### **Result**
+### Resulting Features
 
-* Create trade proposals
-* Accept trade (swap ownership)
-* Reject trade
-* Cancel trade
+* Trade proposals
+* Accept, reject, cancel trade
+* Ownership swaps
+
+### Release Criteria
+
+* Only owners can trade Pokémon
+* Accepting a trade swaps ownership atomically
+* Invalid trades rejected
 
 ---
 
 ## 💰 Phase 4 — Marketplace / Sale Listings (v0.4.0)
 
-### **Purpose**
+### Purpose
 
-Trainers can list Pokémon for sale and buy listed Pokémon.
+Allow trainers to buy and sell Pokémon.
 
-### **TDD Steps**
+### TDD Steps
 
-* Write failing tests for creating a listing
+* Write failing tests for creating listings
 * Write failing tests for buying Pokémon
-* Write failing tests for canceling a listing
+* Write failing tests for canceling listings
 * Implement marketplace service & controller
 
-### **Add Dependency**
+### New Dependency
 
-* SpringDoc OpenAPI for API docs
+* SpringDoc OpenAPI
 
-### **Endpoints**
+### Endpoints
 
 * `POST /api/listings`
 * `GET /api/listings`
 * `POST /api/listings/{id}/buy`
 * `POST /api/listings/{id}/cancel`
 
+### Release Criteria
+
+* Pokémon can be listed for sale
+* Listings cannot be double‑purchased
+* Ownership transferred correctly
+* Swagger UI available
+
 ---
 
 ## 🧪 Phase 5 — Integration Testing & Testcontainers (v0.5.0)
 
-### **Purpose**
+### Purpose
 
-Ensure real-world behavior using PostgreSQL in Docker.
+Validate real‑world behavior using PostgreSQL.
 
-### **TDD Steps**
+### TDD Steps
 
-* Add integration tests for:
+* Add full‑flow integration tests:
+  * Trade lifecycle
+  * Marketplace purchase lifecycle
+* Replace H2 with PostgreSQL Testcontainers
+* Apply Flyway migrations in tests
 
-  * Full trade flow
-  * Listing / buying flow
-* Replace H2 with Testcontainers Postgres in tests
+### New Dependencies
 
-### **New Dependencies**
+* `org.testcontainers:junit-jupiter`
+* `org.testcontainers:postgresql`
+* `org.postgresql:postgresql`
 
-```groovy
-testImplementation 'org.testcontainers:junit-jupiter'
-testImplementation 'org.testcontainers:postgresql'
-runtimeOnly 'org.postgresql:postgresql'
-```
+### Release Criteria
+
+* No H2 usage in integration tests
+* Migrations apply cleanly
+* Full flows pass against real DB
 
 ---
 
 ## 🔐 Phase 6 — Security Skeleton (v0.6.0)
 
-### **Purpose**
+### Purpose
 
-Introduce Spring Security & JWT libraries without enforcing authentication yet.
+Introduce security infrastructure without enforcement.
 
-### **TDD Steps**
+### TDD Steps
 
-* Write tests confirming all routes are still accessible without auth
-* Add `SecurityConfig` allowing all requests
+* Write tests confirming all routes are accessible
+* Add `SecurityConfig` permitting all requests
 * Add JWT dependencies
 
-### **New Dependencies**
+### New Dependencies
 
 * `spring-boot-starter-security`
-* `jjwt-api`, `jjwt-impl`, `jjwt-jackson`
-* `spring-security-test` (test support)
+* `jjwt-*`
+* `spring-security-test`
 
-### **Result**
+### Release Criteria
 
-Security infrastructure exists but does nothing yet.
+* No endpoint regressions
+* Security infrastructure present but inactive
 
 ---
 
-## 🛡 Phase 7 — Real JWT Authentication (v0.7.0)
+## 🛡 Phase 7 — JWT Authentication (v0.7.0)
 
-### **Purpose**
+### Purpose
 
-Lock down API and require token-based authentication.
+Enforce authentication and authorization.
 
-### **TDD Steps**
+### TDD Steps
 
 * Write tests for:
-
   * `/auth/register`
   * `/auth/login`
-  * Protected endpoints returning 401 without token
-  * Valid JWT allows access
+  * 401 on protected routes without token
+  * Valid JWT access
 * Implement:
-
-  * `UserAccount` entity
+  * User account entity
   * JWT service
-  * Auth controller
   * Security filter chain
   * Password encoding
 
+### Release Criteria
+
+* Unauthorized requests return 401
+* Valid JWT grants access
+* Passwords stored securely
+
 ---
 
-## 🌱 Phase 8 — Developer Experience + Refactor (v0.8.0)
+## 🌱 Phase 8 — Developer Experience & Refactor (v0.8.0)
 
-### **Purpose**
+### Purpose
 
-Clean code, improve mapping, add API documentation.
+Improve maintainability and developer experience.
 
-### **TDD Steps**
+### TDD Steps
 
-* Ensure all test coverage remains green during refactor
-* Replace manual DTO mapping with MapStruct
+* Refactor mapping to MapStruct
 * Add Swagger UI
-* Optional: Add Flyway migrations
+* Optional Flyway hardening
 
-### **New Dependencies**
+### New Dependencies
 
-```groovy
-developmentOnly 'org.springframework.boot:spring-boot-devtools'
-implementation 'org.mapstruct:mapstruct'
-annotationProcessor 'org.mapstruct:mapstruct-processor'
-implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui'
-```
+* Spring Boot DevTools
+* MapStruct
+* SpringDoc OpenAPI UI
+
+### Release Criteria
+
+* No behavior changes
+* All tests remain green
+* Documentation complete
 
 ---
 
@@ -304,26 +366,18 @@ Integration tests (Phase 5+) require Docker.
 
 ---
 
-## 🗺 Future Roadmap Beyond v0.8.0
+## ⚙️ Operational Readiness
 
-* v0.9.0 — Trading history/audit
-* v1.0.0 — Stable public release
-* v1.1.0 — GraphQL endpoints
-* v1.2.0 — Docker + K8s deployment
-* v2.0.0 — Multi-region trading marketplace
+* Actuator liveness & readiness
+* Docker‑friendly healthchecks
+* Kubernetes‑compatible design
 
 ---
 
-## 🎉 Contribute
+## 🗺 Beyond v0.8.0
 
-This project is built intentionally for practicing:
-
-* Clean architecture
-* Test-driven development
-* Spring Boot microservices
-* Integration with external APIs
-* JWT-based authentication
-
-Pull requests are welcome!
-
----
+* v0.9.0 — Audit & history
+* v1.0.0 — Stable public API
+* v1.1.0 — GraphQL
+* v1.2.0 — Docker + Kubernetes
+* v2.0.0 — Multi‑region marketplace

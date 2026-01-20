@@ -39,6 +39,17 @@ This project uses **classic Testcontainers only**.
 
 ❌ `@ServiceConnection` is **not allowed**
 
+## Docker / Testcontainers Failures
+
+If tests fail due to Docker not being available, this is expected behavior.
+
+This project does not support in-memory databases for tests.
+
+Related decisions:
+
+- [ADR-001](../adr/ADR-001-database-postgresql.md): Use PostgreSQL across all environments
+- [ADR-002](../adr/ADR-002-testcontainers.md): Use Testcontainers for integration tests
+
 ## Common Errors
 
 ### 0. Colima

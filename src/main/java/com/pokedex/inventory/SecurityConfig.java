@@ -13,29 +13,24 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    // @Bean
-    // SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    //     http
-    //         .csrf(AbstractHttpConfigurer::disable)
-    //         .authorizeHttpRequests(auth -> auth
-    //             .requestMatchers(HttpMethod.GET, "/ping").permitAll()
-    //             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
-    //             .requestMatchers(HttpMethod.GET, "/actuator/info").permitAll()
-    //             .anyRequest().authenticated()
-    //         )
-    //         .httpBasic(Customizer.withDefaults());
+  // @Bean
+  // SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+  //     http
+  //         .csrf(AbstractHttpConfigurer::disable)
+  //         .authorizeHttpRequests(auth -> auth
+  //             .requestMatchers(HttpMethod.GET, "/ping").permitAll()
+  //             .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
+  //             .requestMatchers(HttpMethod.GET, "/actuator/info").permitAll()
+  //             .anyRequest().authenticated()
+  //         )
+  //         .httpBasic(Customizer.withDefaults());
 
-    //     return http.build();
-    // }
+  //     return http.build();
+  // }
 
-    @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .anyRequest().permitAll()
-            );
-        return http.build();
-    }
-
+  @Bean
+  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http.csrf(csrf -> csrf.disable()).authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
+    return http.build();
+  }
 }

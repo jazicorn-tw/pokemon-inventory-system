@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-commit hook aligned with ADR-000 (Quality Gates)
+# Goal: fast, consistent feedback before code leaves your machine.
+#
+# Default behavior:
+# - Auto-format staged changes (Spotless) to prevent style-only CI failures
+# - Run lint/static analysis for main sources (fast-ish)
+# - Skip tests by default (tests are enforced in CI via ./gradlew clean check)
+#
+# Overrides (one-off per commit):
+# - SKIP_QUALITY=1 git commit ...   -> skip this hook once
+# - RUN_TESTS=1 git commit ...      -> also run unit tests
+# - AUTO_FORMAT=0 git commit ...    -> do NOT run spotlessApply (validate only)
+
+if [[ "${SKIP_QUALITY:-}" == "1" ]]; then
+  echo "pre-commit: SKIP_QUALITY=1 set; skipping quality gate."
+  exit 0
+fi
+
+# Ensure we're at repo root even if invoked from subdir
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Only run if relevant files changed (Java/Gradle/config/workflows)
+CHANGED="$(git diff --cached --name-only --diff-filter=ACMR || true)"
+
+should_run=false
+while IFS= read -r f; do
+  case "$f" in
+    *.java|build.gradle|settings.gradle|gradle.properties|config/*|src/*|.github/workflows/*)
+      should_run=true
+      break
+      ;;
+  esac
+done <<< "$CHANGED"
+
+if [[ "$should_run" != "true" ]]; then
+  echo "pre-commit: no relevant files staged; skipping quality gate."
+  exit 0
+fi
+
+echo "pre-commit: running ADR-000 quality gate (format + lint/static analysis)..."
+
+# Optional auto-format (mutates working tree).
+# If formatting changes files, we fail the commit so you can re-stage intentionally.
+if [[ "${AUTO_FORMAT:-1}" != "0" ]]; then
+  ./gradlew --no-daemon --no-configuration-cache -q spotlessApply
+
+  if ! git diff --quiet; then
+    echo "pre-commit: ✨ Spotless reformatted files."
+    echo "pre-commit: please re-stage the changes and commit again."
+    exit 1
+  fi
+else
+  echo "pre-commit: AUTO_FORMAT=0 set; skipping spotlessApply."
+fi
+
+# Static analysis
+./gradlew --no-daemon -q checkstyleMain pmdMain spotbugsMain
+
+if [[ "${RUN_TESTS:-}" == "1" ]]; then
+  echo "pre-commit: RUN_TESTS=1 set; running unit tests..."
+  ./gradlew --no-daemon -q test
+fi
+
+echo "pre-commit: ✅ quality gate passed."

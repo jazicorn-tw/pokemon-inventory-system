@@ -1,0 +1,82 @@
+name: CI Failure Helper Comment
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  comment-on-failure:
+    if: ${{ github.event.workflow_run.conclusion != 'success' && github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Comment (or update comment) on PR with smoke test link
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const prs = run.pull_requests || [];
+
+            if (!prs.length) {
+              core.info("CI failed but no associated pull request was found.");
+              return;
+            }
+
+            const marker = "<!-- ci-failure-helper-comment -->";
+            const repoUrl = "https://github.com/" + context.repo.owner + "/" + context.repo.repo;
+            const link = repoUrl + "/blob/main/DAY_2_FIRST_PR.md#12-first-pr-smoke-test-ci-failures";
+
+            const body =
+              marker + "\n" +
+              "### ❌ CI failed for this PR\n\n" +
+              "Before chasing logs, follow the **First PR Smoke Test** checklist:\n" +
+              "👉 **[First PR Smoke Test](" + link + ")**\n\n" +
+              "Quick rules:\n" +
+              "- Read the **first failure**, not the last\n" +
+              "- Paste the first `Caused by:` block into the PR if you need help\n\n" +
+              "**Run:** " + run.html_url + "\n" +
+              "**Commit:** `" + run.head_sha + "`\n";
+
+            for (const pr of prs) {
+              const issue_number = pr.number;
+
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue_number,
+                  per_page: 100
+                }
+              );
+
+              const existing = comments.find((c) => (c.body || "").includes(marker));
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body: body
+                });
+                core.info("Updated CI helper comment on PR #" + issue_number);
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue_number,
+                  body: body
+                });
+                core.info("Created CI helper comment on PR #" + issue_number);
+              }
+            }
+
