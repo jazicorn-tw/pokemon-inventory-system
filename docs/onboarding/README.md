@@ -28,7 +28,7 @@ This is the **single supported entry point** for new contributors.
 3. Runs the local quality gate (formatting + static checks)
 4. Fails fast if your environment is misconfigured
 
-📄 Details: [`MAKEFILE.md`](./MAKEFILE.md)
+📄 Details: [`MAKEFILE.md`](./files/MAKEFILE.md)
 
 ---
 
@@ -68,7 +68,7 @@ flowchart LR
 
 📄 Details:
 
-- [`PRECOMMIT.md`](./PRECOMMIT.md)
+- [`PRECOMMIT.md`](./files/PRECOMMIT.md)
 - [`LINTING.md`](./LINTING.md)
 - [`docs/adr/ADR-000-linting.md`](../adr/ADR-000-linting.md)
 
@@ -95,13 +95,9 @@ All non-obvious rules are documented as Architecture Decision Records.
 
 📄 Start here:
 
-- [`SETUP_TESTING.md`](./SETUP_TESTING.md)
+- [`SETUP_TESTING.md`](./setup/SETUP_TESTING.md)
 - [`docs/testing/TESTING.md`](../testing/TESTING.md)
 - [`docs/testing/CI_TROUBLESHOOTING.md`](../testing/CI_TROUBLESHOOTING.md)
-
-Common issues are collected here:
-
-- [`COMMON_FIRST_DAY_FAILURES.md`](./COMMON_FIRST_DAY_FAILURES.md)
 
 ---
 
