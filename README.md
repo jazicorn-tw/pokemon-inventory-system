@@ -2,7 +2,11 @@
 
 # 🎒 Pokémon Trainer Inventory Service
 
-*A Spring Boot 4 REST API for managing Pokémon inventories, trades, and a marketplace — built with strict Test‑Driven Development (TDD) and CI‑first quality gates.*
+<p align="center">
+  <em>
+    A production-minded Spring Boot 4 REST API demonstrating test-driven backend design, CI-first quality gates, and real-world infrastructure parity
+  </em>
+</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/java-21-blue" alt="Java">
@@ -23,11 +27,20 @@ The **Pokémon Trainer Inventory Service** is a backend API that allows trainers
 * Trade Pokémon with other trainers
 * Buy and sell Pokémon in a marketplace
 
-The project enforces **production‑realistic constraints from day one**:
+---
 
-* Real PostgreSQL (no H2)
-* Testcontainers‑backed integration tests
-* Identical local and CI quality gates
+## 🚀 What This Project Demonstrates
+
+This is **not a toy API**.
+
+This project showcases how a backend service can be built **correctly from day one**, with:
+
+* Strict **Test-Driven Development (TDD)**
+* **CI parity** enforced locally and remotely
+* Real infrastructure (PostgreSQL, Testcontainers)
+* Explicit architectural decisions (ADRs)
+
+The domain is playful. The engineering is not.
 
 ---
 
@@ -42,11 +55,27 @@ The project enforces **production‑realistic constraints from day one**:
 * **SpringDoc OpenAPI**
 * **MapStruct**
 
-> Dependency and design rationale live in **ARCHITECTURE.md**.
+> Architectural trade-offs and decisions are documented in **ARCHITECTURE.md**.
 
 ---
 
-## 🧭 Feature Roadmap
+## 🧠 Architectural Principles
+
+* **Production parity**  
+  Local, CI, and runtime environments behave the same.
+
+* **Single quality gate**  
+  If `./gradlew clean check` fails, the change is incorrect.
+
+* **Fail fast, fail explicitly**  
+  Infrastructure and environment errors surface early.
+
+* **Decisions are documented**  
+  Non-trivial choices are captured as ADRs.
+
+---
+
+## 🗺️ Feature Roadmap (Phased)
 
 | Phase | Focus                                   |
 | ----: | --------------------------------------- |
@@ -60,125 +89,74 @@ The project enforces **production‑realistic constraints from day one**:
 |     7 | JWT authentication                      |
 |     8 | Developer‑experience improvements       |
 
----
-
-## 🩺 Health & Observability
-
-| Endpoint                     | Purpose         |
-| ---------------------------- | --------------- |
-| `/ping`                      | Bootstrap check |
-| `/actuator/health`           | Overall health  |
-| `/actuator/health/liveness`  | Liveness        |
-| `/actuator/health/readiness` | Readiness       |
+> APIs may evolve between phases. Backward compatibility is not guaranteed yet.
 
 ---
 
-## ⚙️ Configuration
+## 🧪 Testing & Quality Gates
 
-Supported profiles:
-
-* `local`
-* `test`
-* `prod`
-
-Local `.env` loading is supported:
-
-```properties
-spring.config.import=optional:file:.env[.properties]
-```
-
-Environment variables (OS / CI) always take precedence.
-
----
-
-## 🧪 Testing
-
-Fast feedback (tests only):
-
-```bash
-make test
-# or
-./gradlew test
-```
-
-Run CI‑equivalent quality gate locally:
-
-```bash
-make test-ci
-```
-
-This executes:
+### CI-Equivalent Quality Gate (Authoritative)
 
 ```bash
 CI=true SPRING_PROFILES_ACTIVE=test ./gradlew clean check
 ```
 
-If this passes locally, CI should not fail remotely for code‑quality reasons.
+This gate includes:
 
----
-
-## 🚦 Quality Gates (ADR‑000)
-
-Quality gates are a **non‑negotiable architectural decision**, defined in **ADR‑000**.
-
-All changes are expected to pass:
-
-```bash
-./gradlew clean check
-```
-
-This includes:
-
-* Automated tests (unit + integration)
+* Unit + integration tests
 * Formatting (Spotless)
 * Static analysis (Checkstyle, PMD, SpotBugs)
 * Build correctness
 
-The **same command** is enforced locally and in CI to guarantee parity.
+> If a change does not pass this command, it is **not considered correct**, regardless of feature completeness.
 
 ---
 
-## 🧰 Makefile Commands (Authoritative)
+### Integration Testing Strategy
+
+* Uses **real PostgreSQL via Testcontainers**
+* Containers start eagerly to avoid Spring bootstrap race conditions
+* No embedded or in-memory databases are permitted
+
+This ensures failures are **deterministic and production-realistic**.
+
+---
+
+## 🧰 Local Workflow (Optional)
 
 ```bash
-make hooks     # install git hooks
-make test      # tests only (fast feedback)
-make quality   # format + full quality gate
-make test-ci   # CI‑equivalent gate
-make bootstrap # hooks + quality (recommended after clone)
+make test      # fast feedback (tests only)
+make test-ci   # CI-equivalent gate
+make bootstrap # hooks + full quality gate
 ```
 
-⚠️ `make test` does **not** catch formatting or static‑analysis failures.
+⚠️ `make test` does **not** catch formatting or static-analysis failures.
 
-Run `make quality` or `make test-ci` before pushing to avoid CI failures.
-
----
-
-## 📊 Debugging Failures
-
-After `make quality` or `make test-ci`, Gradle generates HTML reports:
-
-```text
-build/reports/tests/test/index.html
-build/reports/checkstyle/main.html
-build/reports/pmd/main.html
-build/reports/spotbugs/main.html
-build/reports/spotless/
-```
+❗ Run `make test-ci` before pushing to avoid CI failures.
 
 ---
 
-## 🐳 Docker
+## 🩺 Health Endpoints
 
-👉 See **docs/onboarding/SETUP_DOCKER.md**
+| Endpoint | Purpose |
+| ------ | ------- |
+| `/ping` | Bootstrap check |
+| `/actuator/health` | Overall health |
+| `/actuator/health/liveness` | Liveness |
+| `/actuator/health/readiness` | Readiness |
 
 ---
 
-## 🧠 Architecture
+## 💡 Why This Project Exists
 
-System design, trade‑offs, and ADRs:
+This project exists to demonstrate **production-grade backend engineering**, not just feature delivery.
 
-👉 **ARCHITECTURE.md**
+It prioritizes:
+
+* Test-driven design
+* CI as the authority
+* Explicit architectural decisions
+* Developer ergonomics **without shortcuts**
 
 ---
 
@@ -187,6 +165,3 @@ System design, trade‑offs, and ADRs:
 Before opening a PR:
 
 * Read **CONTRIBUTING.md**
-* Respect **ADR‑000** (quality gates first)
-* Keep PRs phase‑scoped
-* Add or update ADRs when architectural decisions change
