@@ -21,10 +21,21 @@ jobs:
     env:
       # Keep CI stable/consistent
       CI: true
+
+      # Ensure test profile is consistently used in CI
+      SPRING_PROFILES_ACTIVE: test
+
       # Optional: speed up Gradle; safe defaults
       GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true
+
       # Optional: some environments benefit from reuse, but it's not required
       TESTCONTAINERS_REUSE_ENABLE: false
+
+      # Optional: override BaseIntegrationTest defaults (uncomment if needed)
+      # TEST_DATASOURCE_IMAGE: postgres:16-alpine
+      # TEST_DATASOURCE_DB: pokedex_test
+      # TEST_DATASOURCE_USER: test
+      # TEST_DATASOURCE_PASSWORD: test
 
     steps:
       - name: Checkout
@@ -43,7 +54,7 @@ jobs:
           docker info
 
       - name: Run tests
-        run: ./gradlew test --no-daemon
+        run: ./gradlew test --no-daemon --stacktrace
 
       - name: Upload test reports (on failure)
         if: failure()

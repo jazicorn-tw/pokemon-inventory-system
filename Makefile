@@ -17,6 +17,7 @@ lint:
 # Full local quality gate (matches CI intent)
 # Note: clean is optional here — keep it if you want "fresh" checks every time.
 quality: format
+	rm -rf .gradle/configuration-cache
 	./gradlew --no-daemon -q clean check
 
 test:

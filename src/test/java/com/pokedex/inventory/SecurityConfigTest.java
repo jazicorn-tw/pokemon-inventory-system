@@ -9,7 +9,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(
+    properties = {
+      // This test validates security rules for public endpoints.
+      // It must NOT require a database or Flyway to run.
+      "spring.autoconfigure.exclude="
+          + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
+          + "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,"
+          + "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration"
+    })
 @AutoConfigureMockMvc
 class SecurityConfigTest {
 

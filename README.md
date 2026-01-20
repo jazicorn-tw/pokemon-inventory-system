@@ -1,12 +1,19 @@
+<!-- markdownlint-disable MD033 -->
 # 🎒 Pokémon Trainer Inventory Service
 
-_A Spring Boot 4 API for trainers to manage their Pokémon, trade with others, and participate in a marketplace — powered by PokeAPI and built with Test‑Driven Development (TDD)._
+*A Spring Boot 4 API for trainers to manage their Pokémon, trade with others, and participate in a marketplace — powered by PokeAPI and built with Test-Driven Development (TDD).*
 
-![Java](https://img.shields.io/badge/java-21-blue)
-![Spring Boot](https://img.shields.io/badge/spring--boot-4.x-brightgreen)
-![Docker](https://img.shields.io/badge/docker-ready-blue)
-[![CI](https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/ci.yml/badge.svg)](https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/ci.yml)
-[![Build Image](https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/build-image.yml/badge.svg)](https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/build-image.yml)
+<p align="center">
+  <img src="https://img.shields.io/badge/java-21-blue" alt="Java">
+  <img src="https://img.shields.io/badge/spring--boot-4.x-brightgreen" alt="Spring Boot">
+  <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker">
+  <a href="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/ci.yml">
+    <img src="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/build-image.yml">
+    <img src="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/build-image.yml/badge.svg" alt="Build Image">
+  </a>
+</p>
 
 ---
 
@@ -14,29 +21,29 @@ _A Spring Boot 4 API for trainers to manage their Pokémon, trade with others, a
 
 The **Pokémon Trainer Inventory Service** is a backend REST API that allows trainers to:
 
-- Register trainer profiles  
-- Add Pokémon to their inventory  
-- Validate Pokémon species via **PokeAPI**  
-- Trade Pokémon with other trainers  
-- List Pokémon for sale  
-- Buy Pokémon from other trainers  
+* Register trainer profiles
+* Add Pokémon to their inventory
+* Validate Pokémon species via **PokeAPI**
+* Trade Pokémon with other trainers
+* List Pokémon for sale
+* Buy Pokémon from other trainers
 
-The project follows **strict Test‑Driven Development (TDD)** and enforces
-**foundational quality gates** to maintain production realism from the start.
+The project follows **strict Test-Driven Development (TDD)** and enforces
+**foundational quality gates** to maintain production realism from day one.
 
 ---
 
 ## 🧩 Tech Stack (High Level)
 
-- **Java 21**
-- **Spring Boot 4**
-- **PostgreSQL**
-- **JPA / Hibernate**
-- **Spring Security + JWT (phased)**
-- **Testcontainers**
-- **Flyway**
-- **SpringDoc OpenAPI**
-- **MapStruct**
+* **Java 21**
+* **Spring Boot 4**
+* **PostgreSQL**
+* **JPA / Hibernate**
+* **Spring Security + JWT (phased)**
+* **Testcontainers**
+* **Flyway**
+* **SpringDoc OpenAPI**
+* **MapStruct**
 
 > Detailed dependency rationale lives in **ARCHITECTURE.md**.
 
@@ -44,28 +51,28 @@ The project follows **strict Test‑Driven Development (TDD)** and enforces
 
 ## 🧭 Feature Roadmap
 
-| Phase | Focus |
-| ----- | ------ |
-| 0 | Project skeleton, `/ping`, test harness |
-| 1 | Trainers & inventory |
-| 2 | PokeAPI integration |
-| 3 | Trades |
-| 4 | Marketplace |
-| 5 | Integration tests |
-| 6 | Security skeleton |
-| 7 | JWT authentication |
-| 8 | Developer experience improvements |
+| Phase | Focus                                   |
+| ----- | --------------------------------------- |
+| 0     | Project skeleton, `/ping`, test harness |
+| 1     | Trainers & inventory                    |
+| 2     | PokeAPI integration                     |
+| 3     | Trades                                  |
+| 4     | Marketplace                             |
+| 5     | Integration tests                       |
+| 6     | Security skeleton                       |
+| 7     | JWT authentication                      |
+| 8     | Developer experience improvements       |
 
 ---
 
 ## 🩺 Health & Observability
 
-| Endpoint | Purpose |
-| -------- | -------- |
-| `/ping` | Bootstrap check |
-| `/actuator/health` | Overall health |
-| `/actuator/health/liveness` | Liveness |
-| `/actuator/health/readiness` | Readiness |
+| Endpoint                     | Purpose         |
+| ---------------------------- | --------------- |
+| `/ping`                      | Bootstrap check |
+| `/actuator/health`           | Overall health  |
+| `/actuator/health/liveness`  | Liveness        |
+| `/actuator/health/readiness` | Readiness       |
 
 ---
 
@@ -73,9 +80,9 @@ The project follows **strict Test‑Driven Development (TDD)** and enforces
 
 Profiles:
 
-- `local`
-- `test`
-- `prod`
+* `local`
+* `test`
+* `prod`
 
 Local `.env` loading is supported:
 
@@ -89,11 +96,13 @@ OS / CI environment variables always take precedence.
 
 ## 🧪 Running Tests
 
+Unit + integration tests:
+
 ```bash
 ./gradlew test
 ```
 
-Integration tests:
+Integration tests only:
 
 ```bash
 ./gradlew test --tests "*IT"
@@ -103,9 +112,14 @@ Integration tests:
 
 ## 🚦 Quality Gates
 
-This project enforces **foundational quality gates** before feature development.
+This project enforces **foundational quality gates** as a **non-negotiable baseline**.
 
-All changes are expected to pass:
+Quality gates are treated as an **architectural decision**, not a tooling preference,
+and are defined in **ADR-000**.
+
+### What must pass
+
+All changes are expected to pass the full quality gate:
 
 ```bash
 ./gradlew clean check
@@ -113,21 +127,103 @@ All changes are expected to pass:
 
 This includes:
 
-- Automated tests
-- Linting and static analysis
-- CI enforcement
+* ✅ **Automated tests**
 
-Quality gates are treated as an **architectural decision** and are captured in
-**ADR-000** (linting & static analysis as a first-class concern).
+  * Unit tests
+  * Integration tests (Testcontainers / PostgreSQL)
+* ✅ **Formatting**
 
-See:
+  * Spotless (Java & Gradle)
+* ✅ **Static analysis**
 
-- `docs/adr/ADR-000-linting.md`
-- `docs/onboarding/LINTING.md`
+  * Checkstyle
+  * PMD
+  * SpotBugs
+* ✅ **Build correctness**
+
+  * Compilation
+  * Dependency resolution
+
+The **exact same command** is enforced locally and in CI to guarantee parity.
+
+---
+
+### Makefile shortcuts (recommended)
+
+To reduce cognitive load and make workflows obvious, the repo provides
+simple Makefile aliases:
+
+```bash
+make hooks     # install git hooks
+make quality   # ./gradlew clean check
+make test      # ./gradlew test
+```
+
+Using `make quality` is the **preferred way** to validate a change before pushing.
+
+> These commands intentionally mirror CI behavior — no hidden steps, no drift.
+
+---
+
+### What runs when?
+
+| Stage          | What runs                                | Purpose                                       |
+| -------------- | ---------------------------------------- | --------------------------------------------- |
+| Local (manual) | `make quality` / `./gradlew clean check` | Full validation before pushing                |
+| Pre-commit     | Spotless + targeted analysis             | Fast feedback, prevent style-only CI failures |
+| CI             | `./gradlew clean check`                  | Authoritative gate for merge                  |
+
+If it doesn’t pass CI, it doesn’t ship.
+
+---
+
+### Local enforcement (pre-commit)
+
+A **Git pre-commit hook** runs before code leaves your machine:
+
+* Auto-formats staged files (Spotless)
+* Runs static analysis on affected sources
+* Prevents avoidable CI failures
+
+Pre-commit behavior and escape hatches are documented in:
+
+* `PRECOMMIT.md`
+* `docs/onboarding/ONBOARDING.md`
+
+---
+
+### CI enforcement (authoritative)
+
+CI is the **source of truth**:
+
+* Java 21
+* Docker / Colima-safe Testcontainers
+* Full `./gradlew clean check`
+* Merge-blocking on failure
+
+Local success is expected; CI success is required.
+
+---
+
+### Architectural rationale
+
+Quality gates are established **before feature development** to ensure:
+
+* Consistent style from day one
+* Early detection of correctness and design issues
+* Predictable onboarding for contributors
+* Production-realistic development practices
+
+This decision is formally captured in:
+
+* `docs/adr/ADR-000-linting.md`
+* `docs/onboarding/LINTING.md`
 
 ---
 
 ## 🐳 Docker
+
+Build a runnable image locally:
 
 ```bash
 ./gradlew bootBuildImage
@@ -139,8 +235,7 @@ See:
 
 For system design, trade-offs, and rationale, see:
 
-👉 **ARCHITECTURE.md**  
-👉 **docs/adr/** (Architecture Decision Records, including ADR-000)
+👉 **ARCHITECTURE.md**
 
 ---
 
@@ -150,6 +245,6 @@ Before opening a pull request, please read **CONTRIBUTING.md**.
 
 Contributors are expected to:
 
-- Respect **ADR-000** (quality gates come first)
-- Keep PRs phase-scoped and reviewable
-- Update or add ADRs when decisions change architecture or quality policy
+* Respect **ADR-000** (quality gates come first)
+* Keep PRs phase-scoped and reviewable
+* Update or add ADRs when decisions change architecture or quality policy

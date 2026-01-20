@@ -9,9 +9,19 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest
+/**
+ * Smoke test: verifies the full Spring Boot application context boots under the {@code test}
+ * profile.
+ *
+ * <p>This is an integration test (requires PostgreSQL via Testcontainers). It intentionally extends
+ * {@link BaseIntegrationTest} so the datasource is wired via {@code @DynamicPropertySource}.
+ *
+ * <p>Note: We explicitly point {@code @SpringBootTest} at the application class to avoid "can't
+ * locate @SpringBootConfiguration" failures if package structure changes.
+ */
+@SpringBootTest(classes = InventoryApplication.class)
 @ActiveProfiles("test")
-class InventoryApplicationTests extends BaseIntegrationTest {
+class InventoryApplicationTest extends BaseIntegrationTest {
 
   @Autowired private ApplicationContext applicationContext;
 
