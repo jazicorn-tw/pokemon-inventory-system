@@ -1,8 +1,15 @@
 {
   "checks": {
-    "executableBits": { "strict": 2 },
-    "lineEndings": { "enforce": true },
-    "filePermissions": { "warnOnGroupWrite": true }
+    "executableBits": { 
+      "strict": 2, 
+      "autoStage": true 
+    },
+    "lineEndings": { 
+      "enforce": true 
+    },
+    "filePermissions": { 
+      "warnOnGroupWrite": true 
+    }
   },
   "git": { 
     "autoInstallHooks": true 
