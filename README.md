@@ -4,167 +4,129 @@
 
 <p align="center">
   <em>
-    A production-minded Spring Boot 4 REST API demonstrating test-driven backend design, CI-first quality gates, and real-world infrastructure parity
+    A production-grade Spring Boot 4 backend showcasing test-driven design,
+    CI-first quality gates, and disciplined developer experience.
   </em>
 </p>
 
-<p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT">
-  <img src="https://img.shields.io/badge/java-21-blue" alt="Java 21">
-  <img src="https://img.shields.io/badge/spring--boot-4.x-brightgreen" alt="Spring Boot 4">
-  <img src="https://img.shields.io/badge/database-postgresql-blue" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker">
-  <img src="https://img.shields.io/badge/tests-testcontainers-2496ED" alt="Testcontainers">
-  <a href="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/ci.yml"><img src="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/build-image.yml"><img src="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/build-image.yml/badge.svg" alt="Build Image"></a>
-</p>
+---
+
+## 🚀 At a glance
+
+**Pokémon Trainer Platform** is a backend API that enables trainers to:
+
+- Manage trainer profiles
+- Validate and manage Pokémon (via PokéAPI)
+- Trade Pokémon with other trainers
+- Buy and sell Pokémon in a marketplace
+
+The domain is playful.  
+The engineering is intentionally **serious**.
 
 ---
 
-## 🚀 Overview
+## 🧭 Developer Experience (Doctor‑first)
 
-The **Pokémon Trainer Platform** is a backend API that allows trainers to:
+This project demonstrates a **doctor-first onboarding model**:
 
-* Manage trainer profiles
-* Add and validate Pokémon (via **PokeAPI**)
-* Trade Pokémon with other trainers
-* Buy and sell Pokémon in a marketplace
+```bash
+make doctor
+```
 
----
+- Validates Java 21, Docker, and local tooling
+- Fails fast with explicit remediation steps
+- Never replaces CI — CI remains authoritative
 
-## 🚀 What This Project Demonstrates
+A single CI-aligned quality gate enforces correctness:
 
-This is **not a toy API**.
+```bash
+./gradlew clean check
+```
 
-This project showcases how a backend service can be built **correctly from day one**, with:
-
-* Strict **Test-Driven Development (TDD)**
-* **CI parity** enforced locally and remotely
-* Real infrastructure (PostgreSQL, Testcontainers)
-* Explicit architectural decisions (ADRs)
-
-The domain is playful. The engineering is not.
+> **Fail fast locally.  
+> Enforce correctness in CI.  
+> Document every non-obvious rule with ADRs.**
 
 ---
 
-## 🧩 Tech Stack
+## 🧠 What this project demonstrates
 
-* **Java 21**
-* **Spring Boot 4**
-* **PostgreSQL + Flyway**
-* **JPA / Hibernate**
-* **Spring Security + JWT (phased)**
-* **Testcontainers**
-* **SpringDoc OpenAPI**
-* **MapStruct**
-
----
-
-## 🧠 Architectural Principles
-
-* **Production parity**  
-  Local, CI, and runtime environments behave the same.
-
-* **Single quality gate**  
-  If `./gradlew clean check` fails, the change is incorrect.
-
-* **Fail fast, fail explicitly**  
-  Infrastructure and environment errors surface early.
-
-* **Decisions are documented**  
-  Non-trivial choices are captured as ADRs.
-
-> Architectural trade-offs and decisions are documented in **ARCHITECTURE.md**.
+- **Test‑Driven Development (TDD)** from day one
+- **CI parity** between local and remote environments
+- **Real infrastructure**
+  - PostgreSQL everywhere
+  - Testcontainers for integration tests
+- **Explicit architecture**
+  - Non-trivial decisions captured as ADRs
+- **No shortcuts**
+  - No in-memory databases
+  - No hidden magic scripts
 
 ---
 
-## 🗺️ Feature Roadmap (Phased)
+## 🧩 Tech stack
 
-| Phase | Focus                                   |
-| ----: | --------------------------------------- |
-|     0 | Project skeleton, `/ping`, test harness |
-|     1 | Trainers & inventory                    |
-|     2 | PokeAPI integration                     |
-|     3 | Trades                                  |
-|     4 | Marketplace                             |
-|     5 | Integration hardening                   |
-|     6 | Security skeleton                       |
-|     7 | JWT authentication                      |
-|     8 | Developer‑experience improvements       |
-
-> APIs may evolve between phases. Backward compatibility is not guaranteed yet.
+- **Java 21**
+- **Spring Boot 4**
+- **PostgreSQL + Flyway**
+- **JPA / Hibernate**
+- **Spring Security + JWT (phased)**
+- **Testcontainers**
+- **Gradle**
+- **Docker**
 
 ---
 
-## 🧪 Testing & Quality Gates
+## 🧪 Testing & quality
 
-### CI-Equivalent Quality Gate (Authoritative)
+Authoritative quality gate:
 
 ```bash
 CI=true SPRING_PROFILES_ACTIVE=test ./gradlew clean check
 ```
 
-This gate includes:
+Includes:
 
-* Unit + integration tests
-* Formatting (Spotless)
-* Static analysis (Checkstyle, PMD, SpotBugs)
-* Build correctness
+- Unit & integration tests
+- Formatting (Spotless)
+- Static analysis (Checkstyle, PMD, SpotBugs)
 
-> If a change does not pass this command, it is **not considered correct**, regardless of feature completeness.
-
----
-
-### Integration Testing Strategy
-
-* Uses **real PostgreSQL via Testcontainers**
-* Containers start eagerly to avoid Spring bootstrap race conditions
-* No embedded or in-memory databases are permitted
-
-This ensures failures are **deterministic and production-realistic**.
+If this command fails, the change is **incorrect**.
 
 ---
 
-## 🧰 Local Workflow (Optional)
+## 🗺️ Roadmap (high level)
 
-```bash
-make test      # fast feedback (tests only)
-make test-ci   # CI-equivalent gate
-make bootstrap # hooks + full quality gate
-```
-
-⚠️ `make test` does **not** catch formatting or static-analysis failures.
-
-❗ Run `make test-ci` before pushing to avoid CI failures.
-
----
-
-## 🩺 Health Endpoints
-
-| Endpoint | Purpose |
-| ------ | ------- |
-| `/ping` | Bootstrap check |
-| `/actuator/health` | Overall health |
-| `/actuator/health/liveness` | Liveness |
-| `/actuator/health/readiness` | Readiness |
+| Phase | Focus                           |
+|------:|---------------------------------|
+| 0     | Project skeleton & test harness |
+| 1     | Trainers & inventory            |
+| 2     | PokéAPI integration             |
+| 3     | Trades                          |
+| 4     | Marketplace                     |
+| 5     | Security & hardening            |
 
 ---
 
-## 💡 Why This Project Exists
+## 💡 Why this exists
 
-This project exists to demonstrate **production-grade backend engineering**, not just feature delivery.
+This project exists to demonstrate **how backend systems should be built**, not just that they can be built.
 
-It prioritizes:
+It reflects:
 
-* Test-driven design
-* CI as the authority
-* Explicit architectural decisions
-* Developer ergonomics **without shortcuts**
+- Production mindset
+- Strong engineering discipline
+- Clear documentation
+- Respect for future contributors and reviewers
 
 ---
 
-## 🤝 Contributing
+### 🔗 More details
 
-Before opening a PR:
+- Architecture decisions: `docs/adr/`
+- Onboarding & DX: `docs/onboarding/`
+- Local sanity checks: `make doctor`
 
-* Read **CONTRIBUTING.md**
+---
+
+*Built to be reviewed by engineers — not just to compile.*
