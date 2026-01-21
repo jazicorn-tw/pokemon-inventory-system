@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Local environment pre-flight checks.
+# doctor.sh — Local environment sanity checks.
+#
 # - Fast fail for missing Docker/Colima/Java/Gradle wrapper
 # - Does NOT auto-start anything (explicit is better than implicit)
 # - Safe to run on macOS (Colima or Docker Desktop) + Linux (Docker Engine)
 #
 # Optional knobs:
-#   PRECHECK_REQUIRE_COLIMA=1        -> fail if Colima isn't installed (macOS-only preference)
-#   PRECHECK_MIN_DOCKER_MEM_GB=4     -> warn if Docker reports less (best-effort)
-#   PRECHECK_STRICT=1               -> treat warnings as failures
+#   DOCTOR_REQUIRE_COLIMA=1        -> fail if Colima isn't installed (macOS-only preference)
+#   DOCTOR_MIN_DOCKER_MEM_GB=4     -> warn if Docker reports less (best-effort)
+#   DOCTOR_STRICT=1               -> treat warnings as failures
 #
 # CI behavior:
 #   If CI=true/1, this script exits immediately (local convenience only).
-
-# Internal environment checks invoked by `make doctor`.
-# This script is not meant to be called directly by contributors.
+#
+# Intended to be run via `make doctor`, but safe to run directly.
+# CI remains the authoritative quality gate (ADR-000).
 
 say() { printf "%s\n" "$*"; }
 ok()  { say "✅ $*"; }
@@ -24,13 +25,13 @@ die() { say "❌ $*"; exit 1; }
 
 # CI guard (local-only helper)
 if [[ "${CI:-}" == "true" || "${CI:-}" == "1" ]]; then
-  say "CI detected; skipping local pre-checks."
+  say "CI detected; skipping local doctor checks."
   exit 0
 fi
 
-STRICT="${PRECHECK_STRICT:-0}"
-MIN_MEM_GB="${PRECHECK_MIN_DOCKER_MEM_GB:-4}"
-REQUIRE_COLIMA="${PRECHECK_REQUIRE_COLIMA:-0}"
+STRICT="${DOCTOR_STRICT:-0}"
+MIN_MEM_GB="${DOCTOR_MIN_DOCKER_MEM_GB:-4}"
+REQUIRE_COLIMA="${DOCTOR_REQUIRE_COLIMA:-0}"
 
 if [[ "${STRICT}" == "1" ]]; then
   WARN_AS_FAIL=1
@@ -46,7 +47,7 @@ warn_or_die() {
   fi
 }
 
-say "🔎 Running local pre-checks..."
+say "🔎 Running local doctor checks..."
 
 # --- Java (project expects Java 21) ---
 if ! command -v java >/dev/null 2>&1; then
@@ -76,7 +77,7 @@ fi
 
 # --- docker CLI ---
 if ! command -v docker >/dev/null 2>&1; then
-  die "Docker CLI not found. Install Docker Desktop (macOS/Windows) or Docker Engine (Linux), or Colima (macOS)."
+  die "Docker CLI not found. Install Docker Desktop (macOS/Windows), Docker Engine (Linux), or Colima (macOS)."
 fi
 ok "docker CLI found"
 
@@ -92,7 +93,7 @@ if command -v colima >/dev/null 2>&1; then
   ok "colima is running"
 else
   if [[ "${OS}" == "Darwin" && "${REQUIRE_COLIMA}" == "1" ]]; then
-    die "Colima not found but PRECHECK_REQUIRE_COLIMA=1. Install it (brew install colima) or unset PRECHECK_REQUIRE_COLIMA."
+    die "Colima not found but DOCTOR_REQUIRE_COLIMA=1. Install it (brew install colima) or unset DOCTOR_REQUIRE_COLIMA."
   fi
   if [[ "${OS}" == "Darwin" ]]; then
     warn "colima not found. If you're using Docker Desktop, this is fine."
@@ -132,7 +133,8 @@ if [[ -n "${MEM_LINE}" ]]; then
 fi
 
 if [[ -n "${MEM_GB}" ]]; then
-  awk -v mem="${MEM_GB}" -v min="${MIN_MEM_GB}" 'BEGIN { exit (mem+0 < min+0) }'     || warn_or_die "Docker reports ~${MEM_GB} GiB memory; recommended >= ${MIN_MEM_GB} GiB for Gradle + Testcontainers."
+  awk -v mem="${MEM_GB}" -v min="${MIN_MEM_GB}" 'BEGIN { exit (mem+0 < min+0) }' \
+    || warn_or_die "Docker reports ~${MEM_GB} GiB memory; recommended >= ${MIN_MEM_GB} GiB for Gradle + Testcontainers."
   ok "memory check: ~${MEM_GB} GiB"
 else
   warn "Could not determine Docker memory from 'docker info' (provider=${PROVIDER}). Skipping memory check."
@@ -143,4 +145,4 @@ if ! docker images >/dev/null 2>&1; then
 fi
 ok "docker socket healthy"
 
-ok "Pre-checks passed."
+ok "Doctor checks passed."

@@ -34,7 +34,6 @@ Usage: scripts/check-executable-bits.sh [--print-config] [--strict N] [--auto-st
 Env vars (override JSON):
   STRICT=0|1|2
   AUTO_STAGE=0|1
-  CHECK_EXECUTABLE_BITS_CONFIG=path/to/local-settings.json
 EOF
 }
 

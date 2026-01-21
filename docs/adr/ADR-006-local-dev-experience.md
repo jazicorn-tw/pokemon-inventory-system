@@ -34,12 +34,12 @@ We want local failures to be:
 
 ## Decision
 
-### 1. Introduce a local pre-flight environment check
+### 1. Introduce a local environment sanity check (`doctor`)
 
 A local-only script is added:
 
 ```bash
-scripts/precheck.sh
+scripts/doctor.sh
 ```
 
 Responsibilities:
@@ -51,7 +51,7 @@ Responsibilities:
 - Validate Docker socket health
 - On macOS:
   - Detect Colima
-  - Ensure Colima is running (when Docker is backed by Colima on macOS)
+  - Ensure Colima is running (when present or explicitly required)
 - Perform best-effort Docker memory checks
 
 Design constraints:
@@ -65,20 +65,20 @@ This script is a **local convenience tool** and is not used directly by CI.
 
 ---
 
-### 2. Expose the precheck via a single human-facing Make target: `doctor`
+### 2. Expose the check via a single human-facing Make target: `doctor`
 
 The following Make targets are defined for environment readiness:
 
-| Target        | Purpose                                                     |
-|---------------|------------------------------------------------------------ |
-| `doctor`      | Runs `scripts/precheck.sh` to validate local prerequisites  |
-| `help`        | Lists common Make targets                                   |
+| Target   | Purpose                                          |
+|----------|--------------------------------------------------|
+| `doctor` | Runs `scripts/doctor.sh` to validate local setup |
+| `help`   | Lists common Make targets                        |
 
 Rationale:
 
 - `doctor` is memorable and human-friendly (ideal for onboarding)
-- Keeping a single command avoids redundancy and cognitive overhead
-- The script remains technical (`precheck.sh`) and can evolve independently
+- A single command avoids redundancy and cognitive overhead
+- The script name (`doctor.sh`) matches its intent and documentation
 
 ---
 
@@ -88,13 +88,13 @@ Make is used as a **thin orchestration layer** over Gradle and scripts.
 
 Key targets:
 
-| Target        | Meaning                                                                  |
-|---------------|------------------------------------------------------------------------- |
-| `lint`        | Static analysis only                                                     |
-| `test`        | Unit tests                                                               |
-| `verify`      | “Am I good to push?” (doctor + lint + test)                              |
-| `quality`     | Local approximation of CI (doctor + auto-format + ./gradlew clean check) |
-| `bootstrap`   | First-time setup (hooks + doctor + quality)                              |
+| Target      | Meaning                                                                   |
+|-------------|---------------------------------------------------------------------------|
+| `lint`      | Static analysis only                                                      |
+| `test`      | Unit tests                                                                |
+| `verify`    | “Am I good to push?” (doctor + lint + test)                               |
+| `quality`   | Local CI approximation (doctor + auto-format + ./gradlew clean check)     |
+| `bootstrap` | First-time setup (hooks + doctor + quality)                               |
 
 Design principles:
 
@@ -134,8 +134,8 @@ CI behavior remains unchanged:
 ./gradlew clean check
 ```
 
-Guards are added so that even if Make targets are accidentally used in CI,
-local-only helpers (`scripts/precheck.sh`) exit immediately.
+Guards are added so that even if Make targets are accidentally invoked in CI,
+local-only helpers (`doctor.sh`) exit immediately.
 
 ---
 

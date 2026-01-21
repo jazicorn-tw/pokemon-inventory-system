@@ -11,6 +11,23 @@ If you follow the steps below, you should be able to:
 
 ---
 
+## 🚑 Doctor first (important)
+
+Before running Gradle, tests, or Docker-heavy workflows, always start with:
+
+```bash
+make doctor
+```
+
+This performs **local-only environment sanity checks** and fails fast with clear, actionable errors
+(e.g. missing Java 21, Docker not running, Colima misconfigured).
+
+All other commands assume `make doctor` already passes.
+
+📄 Details: [`DOCTOR.md`](./DOCTOR.md)
+
+---
+
 ## 🚀 Quick start (recommended)
 
 After cloning the repo, run:
@@ -24,7 +41,7 @@ This is the **single supported entry point** for new contributors.
 ### What `make bootstrap` does
 
 1. Installs repo-local Git hooks (including commit message validation)
-2. Verifies required local dependencies
+2. Runs `make doctor` to verify your local environment
 3. Runs the local quality gate (formatting + static checks)
 4. Fixes common macOS permission issues
 5. Fails fast if your environment is misconfigured
@@ -49,7 +66,7 @@ Onboarding docs are intentionally **progressive**. You don’t need to read ever
 ## 🧑‍💻 Development workflow
 
 ```text
-Code → cz commit → commit-msg hook → CI → review → merge
+Code → cz commit → commit-msg hook → PR → CI → review → merge
 ```
 
 ```mermaid
@@ -151,7 +168,8 @@ All non-obvious rules are documented as Architecture Decision Records.
 
 ## 🧠 Guiding principle
 
-> **Use `cz commit` for guidance.  
+> **Run doctor first.  
+> Use `cz commit` for guidance.  
 > Let hooks fail fast.  
 > CI protects the system.  
 > ADRs explain why.**

@@ -12,23 +12,30 @@ The goal is fast unblocking — not blame.
 
 **Symptom**
 
-- Tests hang or fail immediately
-- Errors mentioning `Mapped port can only be obtained after the container is started`
-- PostgreSQL connection failures during tests
+* Tests hang or fail immediately
+* Errors mentioning `Mapped port can only be obtained after the container is started`
+* PostgreSQL connection failures during tests
 
 **Cause**
 
-- Docker (or Colima) is not running
-- Testcontainers cannot start PostgreSQL
+* Docker (or Colima) is not running
+* Testcontainers cannot start PostgreSQL
 
 **Fix**
 
+Run the repo’s environment sanity check first:
+
 ```bash
-colima start
-# or ensure Docker Desktop is running
+make doctor
 ```
 
-Verify:
+If you’re on macOS with Colima:
+
+```bash
+colima start
+```
+
+Quick verification:
 
 ```bash
 docker ps
@@ -40,22 +47,24 @@ docker ps
 
 **Symptom**
 
-- `git commit` fails before opening the editor
-- Messages mentioning Spotless, PMD, or Checkstyle
+* `cz commit` (or `git commit`) fails before opening the editor
+* Messages mentioning Spotless, PMD, Checkstyle, or tests
 
 **Cause**
 
-- This repo enforces **local quality gates** by design
+* This repo enforces **local quality gates** by design
 
 **Fix**
 
-- Read `docs/onboarding/PRECOMMIT.md`
-- Re-run commit after fixing issues
+* Read `docs/onboarding/PRECOMMIT.md`
+* Fix the first reported error (later errors are often cascading)
+* Re-run the commit
 
 **One-time bypass (not recommended):**
 
 ```bash
-SKIP_QUALITY=1 git commit -m "message"
+SKIP_QUALITY=1 cz commit
+# or: SKIP_QUALITY=1 git commit -m "message"
 ```
 
 ---
@@ -64,20 +73,22 @@ SKIP_QUALITY=1 git commit -m "message"
 
 **Symptom**
 
-- Commit stops after formatting
-- Message says files were modified
+* Commit stops after formatting
+* Message says files were modified
 
 **Cause**
 
-- Spotless auto-formats code and requires re-staging
+* Spotless auto-formats code and requires re-staging
 
 **Fix**
 
 ```bash
 git status
 git add .
-git commit
+cz commit
 ```
+
+(Using `git commit` is fine too — `cz commit` is just the preferred workflow.)
 
 ---
 
@@ -85,22 +96,22 @@ git commit
 
 **Symptom**
 
-- Assumptions about in-memory databases
-- Confusion about why PostgreSQL is required locally
+* Assumptions about in-memory databases
+* Confusion about why PostgreSQL is required locally
 
 **Cause**
 
-- This project enforces **production parity**
+* This project enforces **production parity** (PostgreSQL everywhere)
 
 **Fix**
 
-- Ensure Docker is running
-- Do not attempt to switch tests to H2
+* Ensure Docker/Colima is running (`make doctor` will tell you)
+* Do not attempt to switch tests to H2
 
 See:
 
-- `docs/adr/ADR-001-database-postgresql.md`
-- `docs/adr/ADR-002-testcontainers.md`
+* `docs/adr/ADR-001-database-postgresql.md`
+* `docs/adr/ADR-002-testcontainers.md`
 
 ---
 
@@ -108,39 +119,57 @@ See:
 
 **Symptom**
 
-- Works on GitHub Actions but not locally
-- Or works locally but fails CI
+* Works on GitHub Actions but not locally
+* Or works locally but fails CI
 
 **Cause**
 
-- Local environment drift
-- Docker not running
-- Skipped hooks locally
+* Local environment drift
+* Docker not running / not reachable
+* Skipped hooks locally
 
 **Fix**
 
 ```bash
+make doctor
+make verify
+```
+
+If you’re still stuck, do the full first-time setup again:
+
+```bash
 make bootstrap
-make quality
 ```
 
 Local and CI use the **same commands** by contract.
 
 ---
 
-## ❌ Permission Denied on Scripts
+## ❌ Tracked Scripts Missing Executable Bit
 
 **Symptom**
 
-```bash
-Permission denied: ./scripts/install-hooks.sh
-```
+* Errors like:
+
+  * `Permission denied: ./scripts/...`
+  * `check-executable-bits: Found tracked files missing executable bit`
+
+**Cause**
+
+* The executable bit is tracked by Git.
+* If it’s wrong locally, checks will complain (and CI may too).
 
 **Fix**
 
+Use the repo’s exec-bit fixer/checker (preferred), then commit the change:
+
 ```bash
-chmod +x scripts/*.sh
+make exec-bits
+git status
+git commit -m "chore(dev): fix executable bits for scripts"
 ```
+
+(If your workflow auto-stages, the `git add` step may not be needed.)
 
 ---
 
@@ -149,14 +178,22 @@ chmod +x scripts/*.sh
 1. Re-run:
 
    ```bash
+   make doctor
+   ```
+
+2. If needed:
+
+   ```bash
    make bootstrap
    ```
 
-2. Check logs carefully (first error matters most)
-3. Ask for help — include:
-   - Full error output
-   - OS
-   - Docker/Colima status
+3. Check logs carefully (first error matters most)
+
+4. Ask for help — include:
+
+   * Full error output
+   * OS
+   * Docker/Colima status (`colima status` or Docker Desktop state)
 
 ---
 

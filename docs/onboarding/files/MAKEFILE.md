@@ -50,9 +50,9 @@ Run once after cloning.
 Runs **local environment sanity checks** (Java 21, Gradle wrapper, Docker/Colima, memory, socket health).
 
 - Fails fast if infrastructure is misconfigured
-- Never blocks CI (precheck should exit early when `CI=true`)
+- Never blocks CI (doctor should exit early when `CI=true`)
 - Keeps errors actionable (tells you what to run next)
-- Uses `bash ./scripts/precheck.sh` so you don’t get blocked by a missing executable bit
+- Uses `bash ./scripts/doctor.sh` so you don’t get blocked by a missing executable bit
 - Also runs `make exec-bits` first (warns if tracked scripts lost the executable bit in git)
 
 See: [`PRECHECK.md`](./PRECHECK.md)
@@ -75,7 +75,7 @@ If `scripts/check-executable-bits.sh` doesn’t exist yet, this target prints a 
 Runs a **local approximation of the CI quality gate**, with developer-friendly behavior:
 
 1. **Environment sanity**
-   - `make doctor` → `bash ./scripts/precheck.sh`
+   - `make doctor` → `bash ./scripts/doctor.sh`
 
 2. **Formatting (local convenience)**
    - `./gradlew spotlessApply`

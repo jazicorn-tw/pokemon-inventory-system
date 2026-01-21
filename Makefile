@@ -59,7 +59,7 @@ exec-bits:
 # Local environment sanity (human-facing)
 doctor: clean-all exec-bits
 	@bash ./scripts/check-colima.sh
-	@bash ./scripts/precheck.sh
+	@bash ./scripts/doctor.sh
 	@echo "Doctor complete: environment looks ready."
 
 # Auto-format (mutates files)
@@ -80,7 +80,7 @@ test: doctor
 	@./gradlew --no-daemon -q test
 
 # Umbrella target: what a developer should run before pushing / opening a PR
-verify: doctor lint test
+verify: lint test
 	@echo "Verify complete: environment + code checks passed."
 
 # CI parity run (forces CI semantics; no auto-format)
