@@ -1,8 +1,8 @@
 # Bootstrap Scripts
 
-This document describes the purpose and usage of the repo’s bootstrap scripts.
+This document describes the purpose and usage of the repo’s bootstrap scripts, and how they interact with **local settings**.
 
-Bootstrap scripts exist to eliminate a class of frustrating, non-obvious **permission** and **git hook** issues on local machines **without affecting CI**.
+Bootstrap scripts exist to eliminate a class of frustrating, non-obvious **permission**, **line ending**, and **git hook** issues on local machines **without affecting CI**.
 
 Scripts covered:
 
@@ -14,20 +14,50 @@ Scripts covered:
 
 ## Purpose
 
-Executable permissions (`+x`) can be lost or become inconsistent due to:
+Local development environments can drift due to:
 
 - ZIP downloads
 - File copies outside of Git
-- Certain filesystem / editor behaviors
-- Partial checkouts
+- Filesystem / editor differences across OSes
+- Partial or shallow checkouts
 
 Bootstrap scripts ensure:
 
 - Required project scripts are executable
-- Repo-managed Git hooks are executable
-- Git is configured to use `.githooks/`
+- Repo-managed Git hooks are executable and configured
+- Common local hygiene issues are corrected early
 
 They are **safe**, **idempotent**, and **explicitly invoked** (no hidden automation).
+
+---
+
+## Relationship to local settings
+
+Bootstrap behavior is influenced by **repo-committed local settings**:
+
+```json
+{
+  "checks": {
+    "executableBits": { "strict": 2 },
+    "lineEndings": { "enforce": true },
+    "filePermissions": { "warnOnGroupWrite": true }
+  },
+  "git": {
+    "autoInstallHooks": true
+  },
+  "make": {
+    "defaultTarget": "verify"
+  }
+}
+```
+
+These settings:
+
+- Apply **locally only**
+- Never affect CI behavior
+- Are intended for ergonomics and early feedback
+
+See `docs/LOCAL_ENVIRONMENT.md` for full details.
 
 ---
 
@@ -35,7 +65,7 @@ They are **safe**, **idempotent**, and **explicitly invoked** (no hidden automat
 
 When run on a supported OS, bootstrap:
 
-1. Ensures we operate from the repo root (so paths are correct)
+1. Ensures execution from the repo root (so paths are correct)
 2. Ensures Git uses the repo-managed hooks directory:
 
    ```bash
@@ -49,6 +79,10 @@ When run on a supported OS, bootstrap:
 
    Directories are intentionally ignored and no recursion is performed.
 
+4. Honors relevant local settings where applicable:
+   - `checks.executableBits` → auto-fix executable permissions locally
+   - `git.autoInstallHooks` → configure repo-managed hooks during bootstrap
+
 ---
 
 ## What bootstrap does NOT do
@@ -57,7 +91,7 @@ When run on a supported OS, bootstrap:
 - ❌ Does not modify CI behavior
 - ❌ Does not install dependencies
 - ❌ Does not recurse into subdirectories
-- ❌ Does not change application configuration
+- ❌ Does not change application or runtime configuration
 
 ---
 
@@ -124,6 +158,8 @@ permission denied
 hook was ignored because it's not executable
 ```
 
+or notice unexpected local diffs related to permissions or line endings.
+
 ---
 
 ## Relationship to other tooling
@@ -151,6 +187,6 @@ Bootstrap works together with:
 
 ## Summary
 
-Bootstrap scripts eliminate a class of local permission + git hook issues in a safe, explicit way.
+Bootstrap scripts eliminate a class of local permission, line ending, and git hook issues in a safe, explicit way.
 
-If something suddenly stops working locally due to permissions, bootstrap is the first thing to run.
+If something suddenly stops working locally due to environment drift, bootstrap is the first thing to run.
