@@ -4,26 +4,53 @@ set -euo pipefail
 # Check that tracked repo scripts have the executable bit set in Git.
 #
 # STRICT behavior:
-#   - STRICT=0 (default): WARN only (local dev)
+#   - STRICT=0 (default): WARN only
 #   - STRICT=1           : FAIL the build on any missing executable bit
 #   - STRICT=2           : AUTO-FIX (chmod +x [+ optionally git add]), then FAIL if still broken
 #
-# Why this exists:
-#   - Git hooks (.githooks/*) MUST be executable to run
-#   - Shell scripts under scripts/ MUST be executable to avoid "permission denied"
+# Configuration precedence:
+#   1) CLI flags (if used)
+#   2) Environment variables (STRICT, AUTO_STAGE, CHECK_EXECUTABLE_BITS_CONFIG)
+#   3) OS override JSON (e.g. .config/local-settings.macos.json)
+#   4) Base JSON (e.g. .config/local-settings.json)
 #
 # This script only inspects *tracked files* to avoid noise from local-only scripts.
 
+# Defaults
 STRICT="${STRICT:-0}"
+AUTO_STAGE="${AUTO_STAGE:-}"
 
-# Optional JSON config (env var wins)
-CONFIG_FILE="${CHECK_EXECUTABLE_BITS_CONFIG:-.config/check-executable-bits.json}"
+# Config file
+CONFIG_FILE="${CHECK_EXECUTABLE_BITS_CONFIG:-.config/local-settings.json}"
 
-# Patterns of tracked files that are expected to be executable
-PATTERNS=(
-  "scripts/*.sh"
-  ".githooks/*"
-)
+usage() {
+  cat <<'EOF'
+Usage: scripts/check-executable-bits.sh [--print-config] [--strict N] [--auto-stage 0|1]
+
+  --print-config     Print the effective config (after merge/precedence) and exit 0
+  --strict N         Override strictness (0 warn, 1 fail, 2 auto-fix)
+  --auto-stage 0|1   Override whether STRICT=2 stages changes with git add
+
+Env vars (override JSON):
+  STRICT=0|1|2
+  AUTO_STAGE=0|1
+  CHECK_EXECUTABLE_BITS_CONFIG=path/to/local-settings.json
+EOF
+}
+
+PRINT_CONFIG=0
+CLI_STRICT=""
+CLI_AUTO_STAGE=""
+
+while (( "$#" )); do
+  case "$1" in
+    --print-config) PRINT_CONFIG=1; shift ;;
+    --strict) CLI_STRICT="${2:-}"; shift 2 ;;
+    --auto-stage) CLI_AUTO_STAGE="${2:-}"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "check-executable-bits: unknown arg: $1"; usage; exit 2 ;;
+  esac
+done
 
 # Ensure we run from repo root
 REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
@@ -33,28 +60,125 @@ if [[ -z "${REPO_ROOT}" ]]; then
 fi
 cd "${REPO_ROOT}"
 
-read_json_strict_default() {
-  [[ -f "${CONFIG_FILE}" ]] || return 1
+# --- Resolve config via Python (merge base + OS override, validate, output effective values) ---
+resolve_config() {
   python3 - "${CONFIG_FILE}" <<'PY'
-import json, sys
-path = sys.argv[1]
-with open(path) as f:
-  data = json.load(f)
-val = data.get("strict", {}).get("default", None)
-if val is None:
-  sys.exit(2)
-print(val)
+import json, platform, sys
+from pathlib import Path
+
+base_path = Path(sys.argv[1])
+system = platform.system().lower()
+
+if system == "darwin":
+  suffix = "macos"
+elif system.startswith("linux"):
+  suffix = "linux"
+elif system.startswith("windows"):
+  suffix = "windows"
+else:
+  suffix = system
+
+override_path = base_path.parent / f"local-settings.{suffix}.json"
+
+def load_json(path: Path):
+  if not path.exists():
+    return {}
+  with path.open() as f:
+    return json.load(f)
+
+def deep_merge(a, b):
+  if not isinstance(a, dict) or not isinstance(b, dict):
+    return b
+  out = dict(a)
+  for k, v in b.items():
+    if k in out and isinstance(out[k], dict) and isinstance(v, dict):
+      out[k] = deep_merge(out[k], v)
+    else:
+      out[k] = v
+  return out
+
+base = load_json(base_path)
+override = load_json(override_path)
+merged = deep_merge(base, override)
+
+strict = merged.get("checks", {}).get("executableBits", {}).get("strict", 0)
+auto_stage = merged.get("checks", {}).get("executableBits", {}).get("autoStage", False)
+
+if not isinstance(strict, int) or strict not in (0, 1, 2):
+  raise SystemExit(f"Invalid checks.executableBits.strict: {strict!r} (expected 0, 1, or 2)")
+if not isinstance(auto_stage, bool):
+  raise SystemExit(f"Invalid checks.executableBits.autoStage: {auto_stage!r} (expected boolean)")
+
+print(f"STRICT={strict}")
+print(f"AUTO_STAGE={'1' if auto_stage else '0'}")
+print(f"BASE_CONFIG={base_path.as_posix()}")
+print(f"OS_OVERRIDE={override_path.as_posix() if override_path.exists() else ''}")
 PY
 }
 
-# If STRICT not explicitly set (or left at default 0), allow JSON to override default
-# You can change this logic if you want JSON to always win.
-if [[ "${STRICT}" == "0" && -f "${CONFIG_FILE}" ]]; then
-  cfg="$(read_json_strict_default || true)"
-  if [[ -n "${cfg:-}" ]]; then
-    STRICT="${cfg}"
-  fi
+RESOLVED_STRICT=""
+RESOLVED_AUTO_STAGE=""
+BASE_CONFIG=""
+OS_OVERRIDE=""
+
+if [[ -f "${CONFIG_FILE}" ]]; then
+  while IFS= read -r line; do
+    case "$line" in
+      STRICT=*) RESOLVED_STRICT="${line#STRICT=}" ;;
+      AUTO_STAGE=*) RESOLVED_AUTO_STAGE="${line#AUTO_STAGE=}" ;;
+      BASE_CONFIG=*) BASE_CONFIG="${line#BASE_CONFIG=}" ;;
+      OS_OVERRIDE=*) OS_OVERRIDE="${line#OS_OVERRIDE=}" ;;
+    esac
+  done < <(resolve_config)
+else
+  RESOLVED_STRICT="0"
+  RESOLVED_AUTO_STAGE="0"
+  BASE_CONFIG="${CONFIG_FILE}"
+  OS_OVERRIDE=""
 fi
+
+EFFECTIVE_STRICT="${RESOLVED_STRICT}"
+EFFECTIVE_AUTO_STAGE="${RESOLVED_AUTO_STAGE}"
+
+if [[ -n "${STRICT:-}" ]]; then
+  EFFECTIVE_STRICT="${STRICT}"
+fi
+if [[ -n "${AUTO_STAGE:-}" ]]; then
+  EFFECTIVE_AUTO_STAGE="${AUTO_STAGE}"
+fi
+if [[ -n "${CLI_STRICT}" ]]; then
+  EFFECTIVE_STRICT="${CLI_STRICT}"
+fi
+if [[ -n "${CLI_AUTO_STAGE}" ]]; then
+  EFFECTIVE_AUTO_STAGE="${CLI_AUTO_STAGE}"
+fi
+
+if [[ ! "${EFFECTIVE_STRICT}" =~ ^[0-2]$ ]]; then
+  echo "check-executable-bits: invalid STRICT=${EFFECTIVE_STRICT} (expected 0, 1, or 2)"
+  exit 2
+fi
+if [[ ! "${EFFECTIVE_AUTO_STAGE}" =~ ^[01]$ ]]; then
+  echo "check-executable-bits: invalid AUTO_STAGE=${EFFECTIVE_AUTO_STAGE} (expected 0 or 1)"
+  exit 2
+fi
+
+if [[ "${PRINT_CONFIG}" == "1" ]]; then
+  echo "check-executable-bits: effective config"
+  echo "  base:        ${BASE_CONFIG}"
+  if [[ -n "${OS_OVERRIDE}" ]]; then
+    echo "  os override: ${OS_OVERRIDE}"
+  else
+    echo "  os override: (none)"
+  fi
+  echo "  strict:      ${EFFECTIVE_STRICT}"
+  echo "  autoStage:   ${EFFECTIVE_AUTO_STAGE}"
+  exit 0
+fi
+
+PATTERNS=(
+  "scripts/*.sh"
+  ".githooks/*"
+)
 
 missing=()
 
@@ -64,8 +188,6 @@ collect_missing() {
     while IFS= read -r file; do
       [[ -z "${file}" ]] && continue
       [[ -f "${file}" ]] || continue
-
-      # Git file mode (first column): 100755 = executable, 100644 = not executable
       mode="$(git ls-files --stage -- "${file}" | awk '{print $1}')"
       if [[ "${mode}" != "100755" ]]; then
         missing+=("${file}")
@@ -82,15 +204,13 @@ report_missing() {
 }
 
 auto_fix() {
-  # Ensure we only chmod files that still exist
   for f in "${missing[@]}"; do
     [[ -f "${f}" ]] || continue
     chmod +x "${f}"
   done
-
-  # Optional but usually desired for “automatic” behavior:
-  # stage the file mode change so it can be committed.
-  git add -- "${missing[@]}" 2>/dev/null || true
+  if [[ "${EFFECTIVE_AUTO_STAGE}" == "1" ]]; then
+    git add -- "${missing[@]}" 2>/dev/null || true
+  fi
 }
 
 collect_missing
@@ -100,19 +220,27 @@ if (( ${#missing[@]} == 0 )); then
   exit 0
 fi
 
-# STRICT=2: auto-fix path
-if [[ "${STRICT}" == "2" ]]; then
+if [[ "${EFFECTIVE_STRICT}" == "2" ]]; then
   report_missing
   echo ""
-  echo "check-executable-bits: STRICT=2 -> auto-fixing (chmod +x) and staging changes."
+  if [[ "${EFFECTIVE_AUTO_STAGE}" == "1" ]]; then
+    echo "check-executable-bits: STRICT=2 -> auto-fixing (chmod +x) and staging changes."
+  else
+    echo "check-executable-bits: STRICT=2 -> auto-fixing (chmod +x)."
+  fi
   auto_fix
 
-  # Re-check after fix
   collect_missing
   if (( ${#missing[@]} == 0 )); then
     echo "check-executable-bits: ✅ fixed executable bits."
-    echo "check-executable-bits: staged changes; commit them with:"
-    echo '  git commit -m "chore(dev): fix executable bits"'
+    if [[ "${EFFECTIVE_AUTO_STAGE}" == "1" ]]; then
+      echo 'check-executable-bits: staged changes; commit them with:'
+      echo '  git commit -m "chore(dev): fix executable bits"'
+    else
+      echo 'check-executable-bits: please stage + commit the changes:'
+      echo '  git add <file(s)>'
+      echo '  git commit -m "chore(dev): fix executable bits"'
+    fi
     exit 0
   fi
 
@@ -121,7 +249,6 @@ if [[ "${STRICT}" == "2" ]]; then
   exit 1
 fi
 
-# STRICT=0/1: report instructions
 report_missing
 
 cat <<'EOF'
@@ -141,7 +268,7 @@ Tip:
 
 EOF
 
-if [[ "${STRICT}" == "1" ]]; then
+if [[ "${EFFECTIVE_STRICT}" == "1" ]]; then
   echo "check-executable-bits: STRICT=1 -> failing."
   exit 1
 fi

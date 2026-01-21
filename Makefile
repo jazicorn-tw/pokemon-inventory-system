@@ -3,26 +3,38 @@
 
 SHELL := /usr/bin/env bash
 
-.PHONY: help hooks doctor clean clean-all exec-bits format lint quality test verify test-ci bootstrap
+# --- Developer settings ---
+LOCAL_SETTINGS ?= .config/local-settings.json
+
+.PHONY: help local-settings exec-bits hooks doctor clean clean-all exec-bits format lint quality test verify test-ci bootstrap
 
 help:
 	@echo ""
 	@echo "🧰 Make targets"
-	@echo "  make doctor     - Environment sanity (local only)"
-	@echo "  make lint       - Static analysis only (fast-ish)"
-	@echo "  make test       - Unit tests"
-	@echo "  make verify     - Doctor + lint + test (good before pushing)"
-	@echo "  make quality    - Doctor + format + clean check (matches CI intent)"
-	@echo "  make bootstrap  - Install hooks + run full local quality gate"
-	@echo "  make hooks      - Configure repo-local git hooks (macOS: fixes +x)"
-	@echo "  make exec-bits  - Check tracked scripts executable bit (warn locally)"
-	@echo "  make clean      - Clean build outputs only (Gradle clean)"
-	@echo "  make clean-all  - Full local reset (removes .gradle state + clean)"
+	@echo "  make doctor        - Local environment sanity checks (local only)"
+	@echo "  make lint          - Static analysis only (fast-ish)"
+	@echo "  make test          - Unit tests"
+	@echo "  make verify        - Doctor + lint + test (good before pushing)"
+	@echo "  make quality       - Doctor + format + clean check (matches CI intent)"
+	@echo "  make bootstrap     - Install hooks + run full local quality gate"
+	@echo "  make hooks         - Configure repo-local git hooks (macOS: fixes +x)"
+	@echo "  make exec-bits     - Check & auto-fix executable bits for tracked scripts"
+	@echo "  make local-settings  - Print effective local settings (merged + OS override)"
+	@echo "  make clean         - Clean build outputs only (Gradle clean)"
+	@echo "  make clean-all     - Full local reset (removes .gradle state + clean)"
 	@echo ""
 
 hooks:
 	@bash ./scripts/bootstrap-macos.sh
 	@bash ./scripts/install-hooks.sh
+
+## Print effective local settings (merged base + OS override)
+local-settings:
+	@CHECK_EXECUTABLE_BITS_CONFIG="$(LOCAL_SETTINGS)" ./scripts/check-executable-bits.sh --print-config
+
+## Check (and possibly auto-fix) executable bits for tracked scripts/hooks
+exec-bits:
+	@CHECK_EXECUTABLE_BITS_CONFIG="$(LOCAL_SETTINGS)" ./scripts/check-executable-bits.sh
 
 # Clean build outputs only.
 # Fast, safe, and equivalent to Gradle's standard clean.

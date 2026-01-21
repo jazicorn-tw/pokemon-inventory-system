@@ -1,0 +1,8 @@
+{
+  "checks": {
+    "executableBits": {
+      "strict": 2,
+      "autoStage": true
+    }
+  }
+}
