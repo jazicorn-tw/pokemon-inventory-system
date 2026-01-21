@@ -6,7 +6,7 @@ SHELL := /usr/bin/env bash
 # --- Developer settings ---
 LOCAL_SETTINGS ?= .config/local-settings.json
 
-.PHONY: help local-settings exec-bits hooks doctor clean clean-all exec-bits format lint quality test verify test-ci bootstrap
+.PHONY: help local-settings exec-bits hooks doctor clean clean-all format lint quality test verify test-ci bootstrap
 
 help:
 	@echo ""
@@ -48,14 +48,6 @@ clean-all:
 	@rm -rf .gradle
 	@./gradlew --no-daemon clean
 
-# Check executable bits (WARN locally). In CI, set STRICT=1 to fail.
-exec-bits:
-	@if [[ -f ./scripts/check-executable-bits.sh ]]; then \
-		bash ./scripts/check-executable-bits.sh; \
-	else \
-		echo "exec-bits: scripts/check-executable-bits.sh not found; skipping."; \
-	fi
-
 # Local environment sanity (human-facing)
 doctor: clean-all exec-bits
 	@bash ./scripts/check-colima.sh
@@ -80,7 +72,7 @@ test: doctor
 	@./gradlew --no-daemon -q test
 
 # Umbrella target: what a developer should run before pushing / opening a PR
-verify: lint test
+verify: doctor lint test
 	@echo "Verify complete: environment + code checks passed."
 
 # CI parity run (forces CI semantics; no auto-format)
