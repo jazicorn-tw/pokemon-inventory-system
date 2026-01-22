@@ -24,8 +24,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Mint a short-lived installation token for your GitHub App.
-      # Required when using a GitHub App instead of GITHUB_TOKEN/PAT.
       - name: Generate GitHub App token
         id: app-token
         uses: tibdex/github-app-token@v2
@@ -54,5 +52,6 @@ jobs:
 
       - name: Run semantic-release
         env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-        run: npm run release
+        run: npx semantic-release
