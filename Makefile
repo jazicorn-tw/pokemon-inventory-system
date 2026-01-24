@@ -10,7 +10,7 @@ SHELL := /usr/bin/env bash
 # --- Developer settings ---
 LOCAL_SETTINGS ?= .config/local-settings.json
 
-# Workflows to run when invoking `make act`
+# Workflows to run when invoking `make act-all`
 ACT_WORKFLOWS ?= ci-fast ci-quality ci-test image-build image-publish
 
 # --- act (local GitHub Actions) ---
@@ -34,17 +34,21 @@ ACT_CONTAINER_OPTS ?= \
   -e GRADLE_USER_HOME=/tmp/gradle \
   -v $(ACT_GRADLE_CACHE_DIR_EFFECTIVE):/tmp/gradle
 
-# Capture positional args after the target name (for run-ci/list-ci)
+# Capture positional args after the target name (for run-ci/list-ci/explain)
 ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 WORKFLOW_ARG := $(word 1,$(ARGS))
 JOB := $(word 2,$(ARGS))
 WORKFLOW := $(if $(WORKFLOW_ARG),$(WORKFLOW_ARG),ci-test)
 WORKFLOW_FILE := .github/workflows/$(WORKFLOW).yml
 
+# Detect current git branch (Phase 0: direct commits to main)
+GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
 .PHONY: \
   help \
   help-ci \
   explain \
+  debug \
   local-settings \
   exec-bits \
   hooks \
@@ -65,6 +69,7 @@ WORKFLOW_FILE := .github/workflows/$(WORKFLOW).yml
   docker-reset \
   db-shell \
   act \
+  act-all \
   run-ci \
   list-ci \
   helm \
@@ -72,10 +77,6 @@ WORKFLOW_FILE := .github/workflows/$(WORKFLOW).yml
 
 # -------------------------------------------------------------------
 # HELP / DOCS
-#
-# Docs format:
-#   target: deps ## 🧪 Description here
-#   target: deps ## CI: Description here
 # -------------------------------------------------------------------
 
 help: ## 🧰 Show developer help (grouped)
@@ -94,7 +95,8 @@ help: ## 🧰 Show developer help (grouped)
 	@echo "  make lint          - Static analysis only (fast-ish)"
 	@echo "  make test          - Unit tests"
 	@echo "  make verify        - Doctor + lint + test (good before pushing)"
-	@echo "  make quality       - Doctor + format + clean check (matches CI intent)"
+	@echo "  make quality       - Doctor + spotlessCheck + clean check (matches CI intent)"
+	@echo "  make pre-commit    - Smart gate (strict on main, fast elsewhere)"
 	@echo ""
 	@echo "\033[1;33m🐳 Docker / DB\033[0m"
 	@echo "  make docker-up     - Start local Docker Compose services"
@@ -103,9 +105,10 @@ help: ## 🧰 Show developer help (grouped)
 	@echo "  make db-shell      - psql shell into local postgres container"
 	@echo ""
 	@echo "\033[1;33m🧪 act (local GitHub Actions)\033[0m"
-	@echo "  make run-ci [wf] [job] - Run workflow/job via act (defaults to wf=ci)"
+	@echo "  make run-ci [wf] [job] - Run workflow/job via act (defaults to wf=ci-test)"
 	@echo "  make list-ci [wf]      - List jobs for workflow via act"
 	@echo "  make act               - Alias of: make run-ci"
+	@echo "  make act-all           - Run all local CI workflows via act"
 	@echo ""
 	@echo "\033[1;33m📦 Helm / Deploy (prep-only)\033[0m"
 	@echo "  make helm          - Helm is prep-only (ADR-009) → docs/onboarding/HELM.md"
@@ -126,29 +129,37 @@ explain: ## 🧠 Explain a target: make explain <target>
 	  doctor)  echo "doctor: runs local sanity checks (java/gradle/docker/colima/socket)";; \
 	  verify)  echo "verify: doctor + lint + test (recommended before pushing)";; \
 	  quality) echo "quality: doctor + spotlessCheck + clean + check (matches CI intent)";; \
-	  run-ci)  echo "run-ci: run GitHub Actions workflows locally via act (wf defaults to ci; optional job)";; \
+	  pre-commit) echo "pre-commit: smart gate (main → quality, others → fast gate)";; \
+	  run-ci)  echo "run-ci: run GitHub Actions workflows locally via act (wf defaults to ci-test; optional job)";; \
 	  *) echo "No extended explanation available for '$$t' (see docs/MAKEFILE.md)";; \
 	esac
 
-# swallow extra args so make doesn't treat them as targets
-%:
-	@:
+debug: ## 🧾 Print effective tool configuration
+	@echo "ACT=$(ACT)"
+	@echo "ACT_IMAGE=$(ACT_IMAGE)"
+	@echo "ACT_PLATFORM=$(ACT_PLATFORM)"
+	@echo "ACT_DOCKER_SOCK=$(ACT_DOCKER_SOCK)"
+	@echo "ACT_GRADLE_CACHE_DIR_EFFECTIVE=$(ACT_GRADLE_CACHE_DIR_EFFECTIVE)"
+	@echo "WORKFLOW=$(WORKFLOW)"
+	@echo "JOB=$(JOB)"
+	@echo "WORKFLOW_FILE=$(WORKFLOW_FILE)"
+	@echo "GIT_BRANCH=$(GIT_BRANCH)"
 
 # -------------------------------------------------------------------
 # CONFIG / UTIL
 # -------------------------------------------------------------------
 
-local-settings: ## 🧩 Print effective local settings (merged + OS aware)
+local-settings: ## 🧩 Print effective local settings
 	@echo "LOCAL_SETTINGS=$(LOCAL_SETTINGS)"
 	@test -f "$(LOCAL_SETTINGS)" && cat "$(LOCAL_SETTINGS)" || echo "No local settings file found."
 
 exec-bits: ## 🔧 Check & (optionally) auto-fix executable bits for tracked scripts
 	@CHECK_EXECUTABLE_BITS_CONFIG="$(LOCAL_SETTINGS)" ./scripts/check-executable-bits.sh
 
-hooks: ## 🪝 Configure repo-local git hooks (macOS: fixes +x)
+hooks: ## 🪝 Configure repo-local git hooks
 	@./scripts/install-hooks.sh
 
-doctor: ## 🩺 Local environment sanity checks (local only)
+doctor: ## 🩺 Local environment sanity checks
 	@./scripts/doctor.sh
 
 clean: ## 🧹 Clean build outputs
@@ -158,24 +169,36 @@ clean-all: ## 🧹 Clean build + purge local caches (use sparingly)
 	@./gradlew --no-daemon -q clean
 	@rm -rf .gradle build
 
-pre-commit: format verify test-ci
+# -------------------------------------------------------------------
+# PRE-COMMIT POLICY (Phase 0 aware)
+# -------------------------------------------------------------------
 
-## ✨ Auto-format sources
+pre-commit: ## 🪝 Smart pre-commit gate (strict on main)
+	@if [ "$(GIT_BRANCH)" = "main" ]; then \
+	  echo "🪝 pre-commit: on 'main' → running quality"; \
+	  $(MAKE) quality; \
+	else \
+	  echo "🪝 pre-commit: on '$(GIT_BRANCH)' → running fast gate (format + lint + test)"; \
+	  $(MAKE) format lint test; \
+	fi
+
 format: ## ✨ Auto-format sources
-	@rm -rf .gradle/configuration-cache .gradle/caches
-	@./gradlew --no-daemon -q spotlessApply
+	@if [ "$${NUKE_GRADLE_CACHE:-0}" = "1" ]; then \
+	  echo "⚠️  NUKE_GRADLE_CACHE=1 → removing Gradle caches"; \
+	  rm -rf .gradle/configuration-cache .gradle/caches; \
+	fi
+	@./gradlew --no-daemon -q --no-configuration-cache spotlessApply
 
 lint: ## 🔎 Static analysis only (fast-ish)
-	@./gradlew --no-daemon -q checkstyleMain checkstyleTest pmdMain pmdTest spotbugsMain spotbugsTest
+	@./gradlew --no-daemon -q --no-configuration-cache checkstyleMain checkstyleTest pmdMain pmdTest spotbugsMain spotbugsTest
 
 test: ## 🧪 Unit tests
 	@./gradlew --no-daemon -q test
 
-verify: doctor lint test ## ✅ Doctor + lint + test (good before pushing)
+verify: doctor lint test ## ✅ Doctor + lint + test
 	@echo "✅ verify complete"
 
-# Full local quality gate (matches CI intent)
-quality: doctor ## ✅ Doctor + format + clean check (matches CI intent)
+quality: doctor ## ✅ Doctor + spotlessCheck + clean check (matches CI intent)
 	@./gradlew --no-daemon -q spotlessCheck clean check
 
 test-ci: ## CI: Run CI-equivalent test suite locally
@@ -209,7 +232,7 @@ db-shell: ## 🐘 Open a psql shell in the postgres container
 # act — Local GitHub Actions simulation
 # -------------------------------------------------------------------
 
-act: act-all
+act: run-ci ## 🧪 Alias: run one workflow via act
 
 act-all: ## 🧪 Run all local CI workflows via act
 	@for wf in $(ACT_WORKFLOWS); do \
@@ -228,9 +251,10 @@ run-ci: ## 🧪 Run workflow/job via act (auto-detect event)
 	fi
 
 	@mkdir -p "$(ACT_GRADLE_CACHE_DIR_EFFECTIVE)"
-
 	@echo "🧪 act → workflow=$(WORKFLOW) job=$(JOB)"
+
 	@events="push pull_request workflow_dispatch"; \
+	if [ -n "$(JOB)" ]; then events="workflow_dispatch push pull_request"; fi; \
 	for ev in $$events; do \
 	  echo "🔎 trying event=$$ev"; \
 	  tmp="$$(mktemp)"; \
@@ -251,28 +275,25 @@ run-ci: ## 🧪 Run workflow/job via act (auto-detect event)
 	  fi; \
 	  rm -f "$$tmp"; \
 	done; \
-	echo "❌ No runnable jobs found for workflow=$(WORKFLOW) (tried: $$events)"; \
-	echo "👉 Tip: run: $(ACT) -W $(WORKFLOW_FILE) --list"; \
+	echo "❌ No runnable jobs found for workflow=$(WORKFLOW)"; \
 	exit 1
 
-
-list-ci: ## 📋 List jobs for a workflow via act (make list-ci [workflow])
-	@if [ ! -f "$(WORKFLOW_FILE)" ]; then \
-	  echo "❌ Workflow not found: $(WORKFLOW_FILE)"; \
-	  echo "👉 Try: ls .github/workflows"; \
-	  exit 1; \
-	fi
-	@echo "📋 act jobs → workflow=$(WORKFLOW)"
+list-ci: ## 📋 List jobs for a workflow via act
 	@$(ACT) -W $(WORKFLOW_FILE) --list
+
+# Swallow extra args ONLY for targets that accept positionals
+.PHONY: $(ARGS)
+$(ARGS):
+	@:
 
 # -------------------------------------------------------------------
 # Helm / Deploy (prep-only)
 # -------------------------------------------------------------------
 
-helm: ## 🧰 Helm is prep-only (ADR-009) → docs/onboarding/HELM.md
+helm: ## 🧰 Helm is prep-only (ADR-009)
 	@echo "🧰 Helm is prep-only (ADR-009)."
 	@echo "See: docs/onboarding/HELM.md"
 
-deploy: ## 🚧 Deploy is not wired yet → docs/onboarding/DEPLOY.md
+deploy: ## 🚧 Deploy is not wired yet
 	@echo "🚧 Deploy is not wired yet."
 	@echo "See: docs/onboarding/DEPLOY.md"
