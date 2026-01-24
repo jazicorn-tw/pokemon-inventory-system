@@ -14,6 +14,9 @@ concurrency:
   group: build-image-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  ACT: ""
+
 jobs:
   build:
     name: Docker build (no push)
@@ -39,3 +42,32 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  helm-lint:
+    name: Helm lint (CI only)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # GitHub-hosted runners: use toolcache via setup-helm
+      - name: Set up Helm (GitHub runners)
+        if: ${{ !env.ACT }}
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.4
+
+      # act local runs: install Helm without hostedtoolcache or apt repos
+      - name: Install Helm (act)
+        if: ${{ env.ACT }}
+        run: |
+          set -euo pipefail
+          HELM_VERSION="v3.14.4"
+          curl -fsSLo /tmp/helm.tgz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          tar -xzf /tmp/helm.tgz -C /tmp
+          install -m 0755 /tmp/linux-amd64/helm /usr/local/bin/helm
+          helm version
+
+      - name: Helm lint
+        run: helm lint helm/pokemon-trainer-platform

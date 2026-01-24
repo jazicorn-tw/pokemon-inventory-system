@@ -7,8 +7,8 @@ if [[ "${OS}" != "Darwin" ]]; then
   exit 0
 fi
 
-REQUIRED_MEM_GIB=6
-REQUIRED_CPU=4
+REQUIRED_MEM_GIB=8
+REQUIRED_CPU=6
 TOLERANCE_GIB=0.25
 PROFILE="${COLIMA_PROFILE:-default}"
 

@@ -187,6 +187,7 @@ Operational notes:
 - **ADR-000** — Quality Gates and CI as Authority  
 - **ADR-006** — Local Developer Experience and Verification  
 - **ADR-005** — Phased Security Approach
+- **ADR-009** — Deployment Strategy (Render → Kubernetes)
 
 ---
 

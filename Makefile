@@ -2,12 +2,31 @@
 # These do NOT replace CI; they mirror ADR-000 locally.
 
 SHELL := /usr/bin/env bash
+.ONESHELL:
+.SHELLFLAGS := -eu -o pipefail -c
+
+.DEFAULT_GOAL := help
 
 # --- Developer settings ---
 LOCAL_SETTINGS ?= .config/local-settings.json
 
+# --- act (local GitHub Actions) ---
+ACT ?= act
+ACT_IMAGE ?= catthehacker/ubuntu:full-latest
+ACT_PLATFORM ?= linux/amd64
+ACT_DOCKER_SOCK ?= /var/run/docker.sock
+
+# Capture positional args after the target name (for run-ci/list-ci)
+ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+WORKFLOW_ARG := $(word 1,$(ARGS))
+JOB := $(word 2,$(ARGS))
+WORKFLOW := $(if $(WORKFLOW_ARG),$(WORKFLOW_ARG),ci)
+WORKFLOW_FILE := .github/workflows/$(WORKFLOW).yml
+
 .PHONY: \
   help \
+  help-ci \
+  explain \
   local-settings \
   exec-bits \
   hooks \
@@ -25,105 +44,186 @@ LOCAL_SETTINGS ?= .config/local-settings.json
   docker-up \
   docker-down \
   docker-reset \
-  db-shell
+  db-shell \
+  act \
+  run-ci \
+  list-ci \
+  helm \
+  deploy
 
-help:
+# -------------------------------------------------------------------
+# HELP / DOCS
+#
+# Docs format:
+#   target: deps ## 🧪 Description here
+#   target: deps ## CI: Description here
+# -------------------------------------------------------------------
+
+help: ## 🧰 Show developer help (grouped)
 	@echo ""
-	@echo "🧰 Make targets"
-	@echo "  make doctor        - Local environment sanity checks (local only)"
+	@echo "\033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+	@echo "\033[1;36m🧰  Pokémon Trainer Platform — Make Targets\033[0m"
+	@echo "\033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
+	@echo ""
+	@echo "\033[1;33m🚀 Recommended flow\033[0m"
+	@echo "  \033[1mmake bootstrap\033[0m   → first-time setup"
+	@echo "  \033[1mmake verify\033[0m      → before pushing"
+	@echo "  \033[1mmake run-ci\033[0m      → simulate CI locally (act)"
+	@echo ""
+	@echo "\033[1;33m🧪 Quality gates\033[0m"
+	@echo "  make doctor        - Local environment sanity checks"
 	@echo "  make lint          - Static analysis only (fast-ish)"
 	@echo "  make test          - Unit tests"
 	@echo "  make verify        - Doctor + lint + test (good before pushing)"
 	@echo "  make quality       - Doctor + format + clean check (matches CI intent)"
-	@echo "  make bootstrap     - Install hooks + run full local quality gate"
-	@echo "  make hooks         - Configure repo-local git hooks (macOS: fixes +x)"
-	@echo "  make exec-bits     - Check & auto-fix executable bits for tracked scripts"
-	@echo "  make local-settings  - Print effective local settings (merged + OS override)"
-	@echo "  make clean         - Clean build outputs only (Gradle clean)"
-	@echo "  make clean-all     - Full local reset (removes .gradle state + clean)"
+	@echo ""
+	@echo "\033[1;33m🐳 Docker / DB\033[0m"
+	@echo "  make docker-up     - Start local Docker Compose services"
+	@echo "  make docker-down   - Stop local Docker Compose services"
+	@echo "  make docker-reset  - Stop services + delete volumes + restart"
+	@echo "  make db-shell      - psql shell into local postgres container"
+	@echo ""
+	@echo "\033[1;33m🧪 act (local GitHub Actions)\033[0m"
+	@echo "  make run-ci [wf] [job] - Run workflow/job via act (defaults to wf=ci)"
+	@echo "  make list-ci [wf]      - List jobs for workflow via act"
+	@echo "  make act               - Alias of: make run-ci"
+	@echo ""
+	@echo "\033[1;33m📦 Helm / Deploy (prep-only)\033[0m"
+	@echo "  make helm          - Helm is prep-only (ADR-009) → docs/onboarding/HELM.md"
+	@echo "  make deploy        - Deploy is not wired yet → docs/onboarding/DEPLOY.md"
 	@echo ""
 
-hooks:
-	@bash ./scripts/bootstrap-macos.sh
-	@bash ./scripts/install-hooks.sh
+help-ci: ## 🧰 Show only CI-relevant targets
+	@echo ""
+	@echo "CI: verify, quality, test-ci, run-ci, list-ci"
+	@echo ""
 
-## Print effective local settings (merged base + OS override)
-local-settings:
-	@CHECK_EXECUTABLE_BITS_CONFIG="$(LOCAL_SETTINGS)" ./scripts/check-executable-bits.sh --print-config
+explain: ## 🧠 Explain a target: make explain <target>
+	@if [ -z "$(word 2,$(MAKECMDGOALS))" ]; then \
+	  echo "❌ Usage: make explain <target>"; exit 1; \
+	fi
+	@t="$(word 2,$(MAKECMDGOALS))"; \
+	case "$$t" in \
+	  doctor)  echo "doctor: runs local sanity checks (java/gradle/docker/colima/socket)";; \
+	  verify)  echo "verify: doctor + lint + test (recommended before pushing)";; \
+	  quality) echo "quality: doctor + spotlessCheck + clean + check (matches CI intent)";; \
+	  run-ci)  echo "run-ci: run GitHub Actions workflows locally via act (wf defaults to ci; optional job)";; \
+	  *) echo "No extended explanation available for '$$t' (see docs/MAKEFILE.md)";; \
+	esac
 
-## Check (and possibly auto-fix) executable bits for tracked scripts/hooks
-exec-bits:
+# swallow extra args so make doesn't treat them as targets
+%:
+	@:
+
+# -------------------------------------------------------------------
+# CONFIG / UTIL
+# -------------------------------------------------------------------
+
+local-settings: ## 🧩 Print effective local settings (merged + OS aware)
+	@echo "LOCAL_SETTINGS=$(LOCAL_SETTINGS)"
+	@test -f "$(LOCAL_SETTINGS)" && cat "$(LOCAL_SETTINGS)" || echo "No local settings file found."
+
+exec-bits: ## 🔧 Check & (optionally) auto-fix executable bits for tracked scripts
 	@CHECK_EXECUTABLE_BITS_CONFIG="$(LOCAL_SETTINGS)" ./scripts/check-executable-bits.sh
 
-# Clean build outputs only.
-# Fast, safe, and equivalent to Gradle's standard clean.
-clean:
-	@./gradlew --no-daemon clean
+hooks: ## 🪝 Configure repo-local git hooks (macOS: fixes +x)
+	@./scripts/install-hooks.sh
 
-# Full local reset.
-# Removes all Gradle state (including configuration cache and Spotless JVM cache)
-# to recover from corrupted or stale local builds.
-clean-all:
-	@rm -rf .gradle
-	@./gradlew --no-daemon clean
+doctor: ## 🩺 Local environment sanity checks (local only)
+	@./scripts/doctor.sh
 
-# Local environment sanity (human-facing)
-doctor: clean-all exec-bits
-	@bash ./scripts/check-colima.sh
-	@bash ./scripts/doctor.sh
-	@echo "Doctor complete: environment looks ready."
+clean: ## 🧹 Clean build outputs
+	@./gradlew --no-daemon -q clean
 
-# Auto-format (mutates files)
-format:
-	@rm -rf .gradle/configuration-cache
-	@./gradlew --no-daemon --no-configuration-cache -q spotlessApply
+clean-all: ## 🧹 Clean build + purge local caches (use sparingly)
+	@./gradlew --no-daemon -q clean
+	@rm -rf .gradle build
 
-# Static analysis only (fast-ish)
-lint:
-	@./gradlew --no-daemon -q checkstyleMain pmdMain spotbugsMain
+pre-commit: format verify test-ci
 
-# Full local quality gate (matches CI intent)
-quality: doctor
-	@./gradlew --no-daemon -q clean check
+## ✨ Auto-format sources
+format: ## ✨ Auto-format sources
+	@rm -rf .gradle/configuration-cache .gradle/caches
+	@./gradlew --no-daemon -q spotlessApply
 
-# Unit tests (includes doctor to avoid "it works on my machine" failures; use make test or make verify)
-test: doctor
+lint: ## 🔎 Static analysis only (fast-ish)
+	@./gradlew --no-daemon -q checkstyleMain checkstyleTest pmdMain pmdTest spotbugsMain spotbugsTest
+
+test: ## 🧪 Unit tests
 	@./gradlew --no-daemon -q test
 
-# Umbrella target: what a developer should run before pushing / opening a PR
-verify: doctor lint test
-	@echo "Verify complete: environment + code checks passed."
+verify: doctor lint test ## ✅ Doctor + lint + test (good before pushing)
+	@echo "✅ verify complete"
 
-# CI parity run (forces CI semantics; no auto-format)
-test-ci: doctor
-	@CI=true SPRING_PROFILES_ACTIVE=test ./gradlew --no-daemon --stacktrace clean check
+# Full local quality gate (matches CI intent)
+quality: doctor ## ✅ Doctor + format + clean check (matches CI intent)
+	@./gradlew --no-daemon -q spotlessCheck clean check
 
-# Install hooks + run the full quality gate (recommended after clone)
-bootstrap: hooks quality
-	@echo "Bootstrap complete: hooks installed and quality gate passed."
+test-ci: ## CI: Run CI-equivalent test suite locally
+	@./gradlew --no-daemon -q clean test
 
-# List local Docker volumes related to Postgres (useful for spotting leftovers after renames)
-docker-volume:
-	@docker volume ls | grep -i postgres
+bootstrap: hooks exec-bits quality ## 🚀 Install hooks + run full local quality gate
+	@echo "✅ bootstrap complete"
 
-# Start application and Postgres containers using docker compose (non-destructive)
-docker-up:
+# -------------------------------------------------------------------
+# DOCKER / DB
+# -------------------------------------------------------------------
+
+docker-volume: ## 🐳 List local Docker volumes (postgres-focused)
+	@docker volume ls | grep -i postgres || true
+
+docker-up: ## 🐳 Start local Docker Compose services
 	@docker compose up -d
 
-# Stop containers without removing volumes (data preserved)
-docker-down:
+docker-down: ## 🐳 Stop local Docker Compose services
 	@docker compose down
 
-# Fully reset local Docker environment:
-# - Stops containers
-# - Removes volumes (Postgres data)
-# - Recreates containers from scratch
-# Safe for local development only
-docker-reset:
+docker-reset: ## 🧨 Reset local Docker environment (containers + volumes)
 	@echo "⚠️  Resetting local Docker environment (containers + volumes)"
 	@docker compose down -v
 	@docker compose up -d
 
-# Open an interactive psql shell inside the Postgres service container
-db-shell:
+db-shell: ## 🐘 Open a psql shell in the postgres container
 	@docker compose exec postgres psql -U $${POSTGRES_USER:-trainer} -d $${POSTGRES_DB:-trainer}
+
+# -------------------------------------------------------------------
+# act — Local GitHub Actions simulation
+# -------------------------------------------------------------------
+
+act: run-ci ## 🧪 Alias: run-ci
+
+run-ci: ## 🧪 Run workflow/job via act (make run-ci [workflow] [job])
+	@if [ ! -f "$(WORKFLOW_FILE)" ]; then \
+	  echo "❌ Workflow not found: $(WORKFLOW_FILE)"; \
+	  echo "👉 Try: ls .github/workflows"; \
+	  exit 1; \
+	fi
+	@echo "🧪 act → workflow=$(WORKFLOW) job=$(JOB)"
+	@ACT=true $(ACT) push \
+		-W $(WORKFLOW_FILE) \
+		$(if $(JOB),-j $(JOB),) \
+		-P ubuntu-latest=$(ACT_IMAGE) \
+		--container-daemon-socket $(ACT_DOCKER_SOCK) \
+		--container-architecture $(ACT_PLATFORM) \
+		--container-options="--user 0:0"
+
+list-ci: ## 📋 List jobs for a workflow via act (make list-ci [workflow])
+	@if [ ! -f "$(WORKFLOW_FILE)" ]; then \
+	  echo "❌ Workflow not found: $(WORKFLOW_FILE)"; \
+	  echo "👉 Try: ls .github/workflows"; \
+	  exit 1; \
+	fi
+	@echo "📋 act jobs → workflow=$(WORKFLOW)"
+	@$(ACT) -W $(WORKFLOW_FILE) --list
+
+# -------------------------------------------------------------------
+# Helm / Deploy (prep-only)
+# -------------------------------------------------------------------
+
+helm: ## 🧰 Helm is prep-only (ADR-009) → docs/onboarding/HELM.md
+	@echo "🧰 Helm is prep-only (ADR-009)."
+	@echo "See: docs/onboarding/HELM.md"
+
+deploy: ## 🚧 Deploy is not wired yet → docs/onboarding/DEPLOY.md
+	@echo "🚧 Deploy is not wired yet."
+	@echo "See: docs/onboarding/DEPLOY.md"
