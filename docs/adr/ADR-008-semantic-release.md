@@ -156,11 +156,37 @@ Rejected due to:
 
 ---
 
+## Docker image publishing toggle (repo variable)
+
+To keep releases safe and reversible, Docker publishing is controlled by a repository-level Actions variable:
+
+- `PUBLISH_DOCKER_IMAGE` = `true` | `false`
+
+Behavior:
+
+- When `true`, the `Publish Image` workflow will build and push release images on semantic-release tags (`vX.Y.Z`).
+- When `false`, the publish job is skipped (no registry login, no push).
+
+Rationale:
+
+- Release versions remain authoritative and automated (semantic-release creates `vX.Y.Z` tags).
+- Artifact publishing can be disabled instantly without code changes (e.g., registry incident, cost control, or rollout freeze).
+- Separation of concerns:
+  - semantic-release decides **when** a version exists
+  - the repo variable decides **whether** images are published
+
+Operational notes:
+
+- The publish workflow logs the toggle value at runtime for easy debugging.
+- Skipping is intentional and visible in GitHub Actions (job shows “skipped” when disabled).
+
+---
+
 ## Related Decisions
 
 - **ADR-000** — Quality Gates and CI as Authority  
 - **ADR-006** — Local Developer Experience and Verification  
-- **ADR-005** — Phased Security Approach  
+- **ADR-005** — Phased Security Approach
 
 ---
 

@@ -1,0 +1,126 @@
+name: Publish Image
+
+# This workflow runs ONLY when a semantic-release tag is pushed
+# Example: v1.2.3
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+# Minimal permissions:
+# - read repo contents
+# - write packages (needed to push to GHCR)
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  # Prevent duplicate publishes for the same tag
+  group: publish-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Resolve publish toggle
+    runs-on: ubuntu-latest
+
+    outputs:
+      publish: ${{ steps.toggle.outputs.publish }}
+      reason: ${{ steps.toggle.outputs.reason }}
+
+    steps:
+      - name: Compute publish eligibility (fork-safe, default-false)
+        id: toggle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Default false if variable is missing/empty.
+          FLAG="${{ vars.PUBLISH_DOCKER_IMAGE }}"
+          if [[ -z "${FLAG}" ]]; then
+            FLAG="false"
+          fi
+
+          # Skip on forks: only allow publishing when running in the canonical repo owner/org.
+          # (On tag push, fork pushes are uncommon, but this hardens the workflow anyway.)
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.repository }}"
+          CANONICAL="${{ vars.CANONICAL_REPOSITORY }}"
+
+          if [[ -z "${CANONICAL}" || "${REPO}" != "${CANONICAL}" ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Not canonical repo (${REPO})" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "${FLAG}" == "true" ]]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "reason=Flag enabled" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Flag disabled (PUBLISH_DOCKER_IMAGE=${FLAG})" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    name: Build & push Docker image (release)
+    runs-on: ubuntu-latest
+
+    needs: gate
+    if: needs.gate.outputs.publish == 'true'
+
+    steps:
+      # Pull full repo + tags (important for release traceability)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 🧾 Bonus visibility:
+      - name: Docker publish toggle
+        run: |
+          echo "PUBLISH_DOCKER_IMAGE=${{ vars.PUBLISH_DOCKER_IMAGE }}"
+          echo "gate.publish=${{ needs.gate.outputs.publish }}"
+          echo "gate.reason=${{ needs.gate.outputs.reason }}"
+
+      # Enables Buildx (caching, reproducibility, multi-platform support)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Authenticate to GitHub Container Registry (GHCR)
+      # Uses the built-in GITHUB_TOKEN
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Derive Docker tags + labels from the Git tag created by semantic-release
+      # v1.2.3 → 1.2.3, 1.2, 1, latest
+      - name: Extract Docker metadata (tags/labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      # Build the image and push it to GHCR
+      # Cache is shared with CI builds for speed
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
