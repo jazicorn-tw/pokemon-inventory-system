@@ -1,6 +1,9 @@
 # 🧠 Architecture Overview
 
-This document explains **how** the Pokémon Trainer Platform is structured and **why** specific design decisions were made.
+This document explains **how** the Pokémon Trainer Platform is structured and **why**
+specific design decisions were made.
+
+The focus is on **clarity, correctness, and evolvability** rather than premature scale.
 
 ---
 
@@ -10,7 +13,7 @@ This document explains **how** the Pokémon Trainer Platform is structured and *
 - Production parity across environments
 - Fast feedback loops via TDD
 - Clear separation of concerns
-- A safe path toward future scaling
+- A safe, intentional path toward future scaling
 
 ---
 
@@ -19,26 +22,34 @@ This document explains **how** the Pokémon Trainer Platform is structured and *
 The system follows a classic layered architecture:
 
 - **Controller layer** — HTTP boundary, validation, request/response shaping
-- **Service layer** — business rules, orchestration, transactions
+- **Service layer** — business rules, orchestration, transactional boundaries
 - **Domain layer** — entities, invariants, and core concepts
 - **Repository layer** — persistence via Spring Data JPA
 
-This structure supports refactoring, test isolation, and future extraction into separate services.
+This structure favors:
+
+- Test isolation
+- Refactor safety
+- Incremental extraction into separate services if needed later
 
 ---
 
 ## 📂 Domain & Package Boundaries
 
-Top-level packages represent **bounded contexts**:
+Top-level packages represent **bounded contexts**.
 
-- `trainer` — trainer profiles and ownership
-- `pokemon` — owned Pokémon and species validation
-- `trade` — bilateral Pokémon exchanges
-- `market` — listings and purchases
-- `pokeapi` — external API boundary
-- `security` — authentication and authorization
+At this stage (Phase 0), these packages describe **intended boundaries** rather than
+fully implemented features.
 
-This layout minimizes cross-domain coupling and enables future service decomposition.
+- `trainer` — trainer profiles and ownership *(planned)*
+- `pokemon` — owned Pokémon and species validation *(planned)*
+- `trade` — bilateral Pokémon exchanges *(planned)*
+- `market` — listings and purchases *(planned)*
+- `pokeapi` — external API boundary *(planned)*
+- `security` — authentication and authorization *(planned)*
+
+Defining these boundaries early provides a stable mental model and avoids
+large-scale refactors as features are introduced.
 
 ---
 
@@ -49,59 +60,71 @@ Key decisions include:
 - **Spring Boot 4** for long-term framework support
 - **WebClient** instead of RestTemplate (non-blocking, future-proof)
 - **PostgreSQL everywhere** to avoid dialect drift
-- **Flyway** for explicit, versioned migrations
+- **Flyway** for explicit, versioned schema migrations
 - **Testcontainers** for realistic integration tests
 - **MapStruct** for explicit, compile-time-safe mapping
-- **JWT delivered in phases** to avoid early complexity
+- **JWT delivered in phases** to avoid premature security complexity
 
-Each decision favors predictability and maintainability over novelty.
+Each decision favors **predictability and maintainability** over novelty.
 
 ---
 
 ## 🧪 Testing Strategy
 
-The test pyramid is enforced deliberately:
+The test pyramid is enforced deliberately.
 
-- **Unit tests**
-  - Fast
-  - Mock boundaries
-  - Validate business rules
+### Unit tests
 
-- **Integration tests**
-  - Real PostgreSQL
-  - Flyway migrations applied
-  - No mocks for persistence
+- Fast
+- Mock external boundaries
+- Validate business rules and invariants
 
-Integration tests are suffixed with `*IT` and require Docker.
+### Integration tests
+
+- Real PostgreSQL
+- Flyway migrations applied
+- No mocks for persistence or schema
+
+Integration tests:
+
+- Are suffixed with `*IT`
+- Require Docker
+- Run in both local and CI environments
 
 ---
 
 ## 🩺 Operability (Build & Operate)
 
+Operational concerns are treated as **first-class citizens**:
+
 - `/ping` verifies application bootstrap
 - Actuator health endpoints expose readiness and liveness
-- Designed for Docker, CI, and Kubernetes compatibility
+- Designed for Docker-based execution and CI environments
 
-Operational concerns are treated as first-class citizens.
+The application is **designed to be deployable** to container platforms
+without assuming a specific runtime or orchestrator.
 
 ---
 
 ## 🗃️ Schema & Migrations
 
-- Flyway is the single source of truth
+- Flyway is the **single source of truth** for schema evolution
 - Migrations are forward-only and deterministic
-- Schema changes are tested via integration tests
+- Schema changes are verified through integration tests
+
+This ensures schema drift is detected early and consistently.
 
 ---
 
 ## 🔒 Security (Phased Delivery)
 
-Security is introduced incrementally:
+Security is introduced incrementally to avoid obscuring domain correctness.
 
-- Early phases: dependencies only, endpoints open
-- Phase 7: JWT enforcement and protected routes
+- Early phases: dependencies present, endpoints open
+- Later phases: JWT enforcement and protected routes
 
-This keeps focus on domain correctness early while maintaining a realistic roadmap.
+This approach keeps early development focused while maintaining
+a realistic and explicit security roadmap.
 
 ---
 
@@ -109,22 +132,14 @@ This keeps focus on domain correctness early while maintaining a realistic roadm
 
 Quality gates define the **minimum bar** for all code in the system.
 
-Before any architectural layering, domain modeling, or feature work,
-the project establishes:
+Before domain modeling or feature development, the project establishes:
 
-- Automated linting
+- Automated formatting
 - Static analysis
 - CI enforcement
 
 These decisions are captured in **ADR-000**, which intentionally precedes
-all other ADRs.
-
-Quality gates ensure:
-
-- Consistent code style
-- Early bug detection
-- Reduced PR friction
-- Predictable refactoring safety
+all other architectural decisions.
 
 All changes are expected to pass:
 
@@ -132,13 +147,24 @@ All changes are expected to pass:
 ./gradlew clean check
 ```
 
+Quality gates ensure:
+
+- Consistent code style
+- Early bug detection
+- Predictable refactoring safety
+- Reduced PR friction
+
 ---
 
 ## 📜 Architecture Decision Records (ADRs)
 
-Key decisions are captured in `docs/adr/`
+Non-trivial decisions are captured in `docs/adr/`.
 
-ADRs prevent accidental regressions during refactors.
+ADRs:
+
+- Preserve architectural intent
+- Prevent accidental regressions
+- Provide context during refactors or reviews
 
 ---
 
@@ -146,16 +172,16 @@ ADRs prevent accidental regressions during refactors.
 
 This project demonstrates:
 
-- **Craft** — TDD, refactoring discipline, clean layering
+- **Craft** — TDD, refactoring discipline, clear layering
 - **Sustainable Delivery** — CI automation, reproducible tests
 - **Build & Operate** — health checks, migrations, parity
-- **Collaboration** — documentation, ADRs, clear structure
+- **Collaboration** — documentation, ADRs, explicit structure
 
 ---
 
 ## 🚧 Planned Improvements
 
 - Structured JSON logging with correlation IDs
-- OpenAPI‑first endpoint documentation
+- OpenAPI-first endpoint documentation
 - Contract tests for external API boundaries
 - Rate limiting and abuse protection
