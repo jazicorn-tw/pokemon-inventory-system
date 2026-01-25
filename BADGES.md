@@ -18,7 +18,7 @@ Badges are treated as **signals**, not decoration.
 ### Java 21
 
 ```html
-<img src="https://img.shields.io/badge/java-21-blue" alt="Java">
+<img src="https://img.shields.io/badge/java-21-blue" alt="Java 21">
 ```
 
 **Represents**
@@ -39,7 +39,7 @@ Badges are treated as **signals**, not decoration.
 ### Spring Boot 4.x
 
 ```html
-<img src="https://img.shields.io/badge/spring--boot-4.x-brightgreen" alt="Spring Boot">
+<img src="https://img.shields.io/badge/spring--boot-4.x-brightgreen" alt="Spring Boot 4">
 ```
 
 **Represents**
@@ -79,30 +79,6 @@ Badges are treated as **signals**, not decoration.
 
 ---
 
-### Docker Ready
-
-```html
-<img src="https://img.shields.io/badge/docker-ready-blue" alt="Docker">
-```
-
-**Represents**
-
-- Docker is required or expected for:
-  - Local development (Docker / Colima)
-  - Integration testing
-  - CI workflows
-
-**Why it matters**
-
-- Communicates infrastructure parity
-- Sets clear contributor expectations
-
-**Update when**
-
-- Docker is no longer required or supported
-
----
-
 ### Testcontainers
 
 ```html
@@ -128,8 +104,8 @@ Badges are treated as **signals**, not decoration.
 ### Continuous Integration (CI)
 
 ```html
-<a href="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/ci.yml">
-  <img src="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/ci.yml/badge.svg" alt="CI">
+<a href="https://github.com/jazicorn-tw/pokemon-trainer-platform/actions/workflows/ci-test.yml">
+  <img src="https://github.com/jazicorn-tw/pokemon-trainer-platform/actions/workflows/ci-test.yml/badge.svg" alt="CI">
 </a>
 ```
 
@@ -145,15 +121,23 @@ Badges are treated as **signals**, not decoration.
 
 **Source**
 
-- GitHub Actions workflow: `ci.yml`
+- GitHub Actions workflow: `ci-test.yml`
+
+---
+
+## 🧪 Conditional / Deferred Badges
+
+The following badges are **implemented or scaffolded**, but intentionally **not surfaced in `README.md` yet**.
+
+They may be added later once their signals are externally meaningful.
 
 ---
 
 ### Docker Image Build
 
 ```html
-<a href="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/build-image.yml">
-  <img src="https://github.com/jazicorn-tw/pokemon-inventory-system/actions/workflows/build-image.yml/badge.svg" alt="Build Image">
+<a href="https://github.com/jazicorn-tw/pokemon-trainer-platform/actions/workflows/image-build.yml">
+  <img src="https://github.com/jazicorn-tw/pokemon-trainer-platform/actions/workflows/image-build.yml/badge.svg" alt="Build Image">
 </a>
 ```
 
@@ -164,11 +148,44 @@ Badges are treated as **signals**, not decoration.
 **Why it matters**
 
 - Confirms the application can be packaged into a runnable artifact
-- Signals deployment readiness (even if not yet published)
+- Serves as a prerequisite for future image publishing
+
+**Why it is not shown in README yet**
+
+- Images are not yet consumer-facing
+- Publishing is intentionally gated behind quality enforcement
 
 **Source**
 
-- GitHub Actions workflow: `build-image.yml`
+- GitHub Actions workflow: `image-build.yml`
+
+---
+
+### Docker Image Publish (Deferred)
+
+```html
+<a href="https://github.com/jazicorn-tw/pokemon-trainer-platform/actions/workflows/image-publish.yml">
+  <img src="https://github.com/jazicorn-tw/pokemon-trainer-platform/actions/workflows/image-publish.yml/badge.svg" alt="Publish Image">
+</a>
+```
+
+**Represents**
+
+- Publication of Docker images to a registry
+
+**Why it matters**
+
+- Signals release-grade artifacts
+- Enables downstream consumption
+
+**Why it is deferred**
+
+- Image publishing will be enabled **after quality gates (SonarQube) are enforced**
+- Badge will be surfaced once images are documented and consumable
+
+**Source**
+
+- GitHub Actions workflow: `image-publish.yml`
 
 ---
 
