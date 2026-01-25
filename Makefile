@@ -7,7 +7,125 @@ SHELL := /usr/bin/env bash
 
 .DEFAULT_GOAL := help
 
-# --- Developer settings ---
+# -------------------------------------------------------------------
+# Console styling
+# -------------------------------------------------------------------
+
+ESC := \033
+RESET := $(ESC)[0m
+BOLD := $(ESC)[1m
+DIM := $(ESC)[2m
+
+CYAN := $(ESC)[1;36m
+YELLOW := $(ESC)[1;33m
+GREEN := $(ESC)[1;32m
+RED := $(ESC)[1;31m
+GRAY := $(ESC)[90m
+
+HR := $(CYAN)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(RESET)
+HR2 := $(CYAN)════════════════════════════════════════════════$(RESET)
+
+# Auto-disable colors when stdout is not a TTY (pipes / CI logs)
+ifneq ($(shell test -t 1 && echo tty),tty)
+NO_COLOR := 1
+endif
+
+# Respect NO_COLOR=1
+ifeq ($(NO_COLOR),1)
+RESET :=
+BOLD :=
+DIM :=
+CYAN :=
+YELLOW :=
+GREEN :=
+RED :=
+GRAY :=
+HR := ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HR2 := ════════════════════════════════════════════════
+endif
+
+# -------------------------------------------------------------------
+# Printing helpers (portable; printf interprets \033 correctly)
+# -------------------------------------------------------------------
+
+define println
+	@printf "%b\n" "$1"
+endef
+
+define print
+	@printf "%b" "$1"
+endef
+
+define section
+	$(call println,)
+	$(call println,$(HR))
+	$(call println,$(CYAN)$(BOLD)$1$(RESET))
+	$(call println,$(HR))
+	$(call println,)
+endef
+
+# "Hero-lite" header: bigger divider, no box
+define section2
+	$(call println,)
+	$(call println,$(HR2))
+	$(call println,$(CYAN)$(BOLD)$1$(RESET))
+	$(call println,$(HR2))
+	$(call println,)
+endef
+
+define step
+	$(call println,$(CYAN)▶$(RESET) $(BOLD)$1$(RESET))
+endef
+
+define info
+	$(call println,$(GRAY)$1$(RESET))
+endef
+
+# =============================================================================
+# GROUPED LOGGING (CI-friendly, optional locally)
+#
+# IMPORTANT:
+# - Do NOT redefine `group_start` / `group_end` elsewhere in this file.
+# - These macros are intentionally centralized here so log grouping behavior
+#   can be toggled globally.
+#
+# Behavior:
+# - CI=true            → groups ENABLED (GitHub Actions compatible)
+# - GROUP_LOGS=1       → groups ENABLED locally
+# - default (local)    → groups DISABLED for clean console output
+#
+# Usage:
+#   $(call group_start,<name>)
+#     … commands …
+#   $(call group_end)
+#
+# This design keeps:
+# - CI logs structured and collapsible
+# - Local DX clean and readable
+# =============================================================================
+
+GROUP_LOGS ?= $(if $(CI),1,0)
+
+ifeq ($(GROUP_LOGS),1)
+define group_start
+	$(call println,::group::$1)
+endef
+define group_end
+	$(call println,::endgroup::)
+endef
+else
+define group_start
+	@:
+endef
+define group_end
+	@:
+endef
+endif
+
+# -------------------------------------------------------------------
+# Developer settings
+# -------------------------------------------------------------------
+
 LOCAL_SETTINGS ?= .config/local-settings.json
 
 # Workflows to run when invoking `make act-all`
@@ -26,7 +144,10 @@ ACT_GRADLE_CACHE_DIR ?=
 ACT_GRADLE_CACHE_DIR_EFFECTIVE := $(or $(strip $(ACT_GRADLE_CACHE_DIR)),$(CURDIR)/.gradle-act)
 
 # Use JAVA_TOOL_OPTIONS to avoid quoting issues inside `--container-options`
-ACT_JAVA_TOOL_OPTIONS := -Djava.net.preferIPv4Stack=true -Dorg.gradle.internal.http.connectionTimeout=60000 -Dorg.gradle.internal.http.socketTimeout=60000
+ACT_JAVA_TOOL_OPTIONS := \
+  -Djava.net.preferIPv4Stack=true \
+  -Dorg.gradle.internal.http.connectionTimeout=60000 \
+  -Dorg.gradle.internal.http.socketTimeout=60000
 
 # Use docker-short flags and single-quotes for values containing spaces
 ACT_CONTAINER_OPTS ?= \
@@ -41,90 +162,93 @@ JOB := $(word 2,$(ARGS))
 WORKFLOW := $(if $(WORKFLOW_ARG),$(WORKFLOW_ARG),ci-test)
 WORKFLOW_FILE := .github/workflows/$(WORKFLOW).yml
 
-# Detect current git branch (Phase 0: direct commits to main)
+# Detect current git branch (Phase 0)
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 
 .PHONY: \
-  help \
-  help-ci \
-  explain \
-  debug \
-  local-settings \
-  exec-bits \
-  hooks \
-  doctor \
-  clean \
-  clean-all \
-  format \
-  lint \
-  test \
-  verify \
-  quality \
-  test-ci \
-  bootstrap \
-  pre-commit \
-  docker-volume \
-  docker-up \
-  docker-down \
-  docker-reset \
-  db-shell \
-  act \
-  act-all \
-  run-ci \
-  list-ci \
-  helm \
-  deploy
+  help help-short help-auto help-ci \
+  explain debug \
+  local-settings exec-bits hooks doctor \
+  clean clean-all \
+  format lint test verify quality test-ci bootstrap pre-commit \
+  docker-volume docker-up docker-down docker-reset db-shell \
+  act act-all run-ci list-ci \
+  helm deploy
 
 # -------------------------------------------------------------------
 # HELP / DOCS
 # -------------------------------------------------------------------
 
-help: ## 🧰 Show developer help (grouped)
-	@echo ""
-	@echo "\033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-	@echo "\033[1;36m🧰  Pokémon Trainer Platform — Make Targets\033[0m"
-	@echo "\033[1;36m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
-	@echo ""
-	@echo "\033[1;33m🚀 Recommended flow\033[0m"
-	@echo "  \033[1mmake bootstrap\033[0m   → first-time setup"
-	@echo "  \033[1mmake verify\033[0m      → before pushing"
-	@echo "  \033[1mmake run-ci\033[0m      → simulate CI locally (act)"
-	@echo ""
-	@echo "\033[1;33m🧪 Quality gates\033[0m"
-	@echo "  make doctor        - Local environment sanity checks"
-	@echo "  make lint          - Static analysis only (fast-ish)"
-	@echo "  make test          - Unit tests"
-	@echo "  make verify        - Doctor + lint + test (good before pushing)"
-	@echo "  make quality       - Doctor + spotlessCheck + clean check (matches CI intent)"
-	@echo "  make pre-commit    - Smart gate (strict on main, fast elsewhere)"
-	@echo ""
-	@echo "\033[1;33m🐳 Docker / DB\033[0m"
-	@echo "  make docker-up     - Start local Docker Compose services"
-	@echo "  make docker-down   - Stop local Docker Compose services"
-	@echo "  make docker-reset  - Stop services + delete volumes + restart"
-	@echo "  make db-shell      - psql shell into local postgres container"
-	@echo ""
-	@echo "\033[1;33m🧪 act (local GitHub Actions)\033[0m"
-	@echo "  make run-ci [wf] [job] - Run workflow/job via act (defaults to wf=ci-test)"
-	@echo "  make list-ci [wf]      - List jobs for workflow via act"
-	@echo "  make act               - Alias of: make run-ci"
-	@echo "  make act-all           - Run all local CI workflows via act"
-	@echo ""
-	@echo "\033[1;33m📦 Helm / Deploy (prep-only)\033[0m"
-	@echo "  make helm          - Helm is prep-only (ADR-009) → docs/onboarding/HELM.md"
-	@echo "  make deploy        - Deploy is not wired yet → docs/onboarding/DEPLOY.md"
-	@echo ""
+help: ## 🧰 Show developer help (curated)
+	$(call section,🧰  Pokémon Trainer Platform — Make Targets)
+
+	$(call println,$(YELLOW)🚀 Recommended flow$(RESET))
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make demo" "→ onboarding walkthrough"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make bootstrap" "→ first-time setup"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make verify" "→ before pushing"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make run-ci" "→ simulate CI locally (act)"
+	$(call println,)
+
+	$(call println,$(YELLOW)🧪 Quality gates$(RESET))
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make doctor" "→ local environment sanity checks"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make lint" "→ static analysis only (fast-ish)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make test" "→ unit tests"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make verify" "→ doctor + lint + test"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make quality" "→ doctor + spotlessCheck + clean check"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make pre-commit" "→ smart gate (main strict, branches fast)"
+	$(call println,)
+
+	$(call println,$(YELLOW)🐳 Docker / DB$(RESET))
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make docker-up" "→ start local Docker Compose services"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make docker-down" "→ stop local Docker Compose services"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make docker-reset" "→ stop + delete volumes + restart"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make db-shell" "→ psql shell into local postgres container"
+	$(call println,)
+
+	$(call println,$(YELLOW)🧪 act (local GitHub Actions)$(RESET))
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make run-ci [wf] [job]" "→ run via act (default wf=ci-test)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make list-ci [wf]" "→ list jobs for workflow via act"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make act" "→ alias: make run-ci"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make act-all" "→ run all local CI workflows via act"
+	$(call println,)
+
+	$(call println,$(YELLOW)📦 Helm / Deploy (prep-only)$(RESET))
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make helm" "→ prep-only (ADR-009)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make deploy" "→ not wired yet"
+	$(call println,)
+
+	$(call println,$(GRAY)More: make help-short | make help-auto | make banner | make demo-ci | make doctor-json-demo | NO_COLOR=1 make help$(RESET))
+	$(call println,)
+
+help-short: ## 🧰 Quick help (minimal)
+	$(call section,🧰  Quick Make Targets)
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "demo" "onboarding walkthrough"
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "demo-ci" "onboarding walkthrough (no color)"
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "verify" "doctor + lint + test"
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "quality" "CI-parity gate"
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "run-ci" "simulate CI via act"
+	$(call println,)
+
+help-auto: ## 🧾 Auto-generated help (from ## comments)
+	$(call section,🧾  Auto-generated help)
+	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  $(BOLD)%-24s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	$(call println,)
 
 help-ci: ## 🧰 Show only CI-relevant targets
-	@echo ""
-	@echo "CI: verify, quality, test-ci, run-ci, list-ci"
-	@echo ""
+	$(call section,🧰  CI-relevant Make Targets)
+	@printf "  $(BOLD)%-12s$(RESET) %s\n" "verify" "→ doctor + lint + test"
+	@printf "  $(BOLD)%-12s$(RESET) %s\n" "quality" "→ doctor + spotlessCheck + clean check"
+	@printf "  $(BOLD)%-12s$(RESET) %s\n" "test-ci" "→ clean test (CI-like)"
+	@printf "  $(BOLD)%-12s$(RESET) %s\n" "run-ci" "→ run workflows via act"
+	@printf "  $(BOLD)%-12s$(RESET) %s\n" "list-ci" "→ list act jobs"
+	$(call println,)
 
 explain: ## 🧠 Explain a target: make explain <target>
 	@if [ -z "$(word 2,$(MAKECMDGOALS))" ]; then \
-	  echo "❌ Usage: make explain <target>"; exit 1; \
+	  printf "%b\n" "$(RED)❌ Usage: make explain <target>$(RESET)"; exit 1; \
 	fi
 	@t="$(word 2,$(MAKECMDGOALS))"; \
+	$(call section,🧠  explain → $${t}); \
 	case "$$t" in \
 	  doctor)  echo "doctor: runs local sanity checks (java/gradle/docker/colima/socket)";; \
 	  verify)  echo "verify: doctor + lint + test (recommended before pushing)";; \
@@ -133,25 +257,29 @@ explain: ## 🧠 Explain a target: make explain <target>
 	  run-ci)  echo "run-ci: run GitHub Actions workflows locally via act (wf defaults to ci-test; optional job)";; \
 	  *) echo "No extended explanation available for '$$t' (see docs/MAKEFILE.md)";; \
 	esac
+	$(call println,)
 
 debug: ## 🧾 Print effective tool configuration
-	@echo "ACT=$(ACT)"
-	@echo "ACT_IMAGE=$(ACT_IMAGE)"
-	@echo "ACT_PLATFORM=$(ACT_PLATFORM)"
-	@echo "ACT_DOCKER_SOCK=$(ACT_DOCKER_SOCK)"
-	@echo "ACT_GRADLE_CACHE_DIR_EFFECTIVE=$(ACT_GRADLE_CACHE_DIR_EFFECTIVE)"
-	@echo "WORKFLOW=$(WORKFLOW)"
-	@echo "JOB=$(JOB)"
-	@echo "WORKFLOW_FILE=$(WORKFLOW_FILE)"
-	@echo "GIT_BRANCH=$(GIT_BRANCH)"
+	$(call section,🧾  Effective configuration)
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "ACT" "$(ACT)"
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "ACT_IMAGE" "$(ACT_IMAGE)"
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "ACT_PLATFORM" "$(ACT_PLATFORM)"
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "ACT_DOCKER_SOCK" "$(ACT_DOCKER_SOCK)"
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "ACT_GRADLE_CACHE_DIR_EFFECTIVE" "$(ACT_GRADLE_CACHE_DIR_EFFECTIVE)"
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "WORKFLOW" "$(WORKFLOW)"
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "JOB" "$(JOB)"
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "WORKFLOW_FILE" "$(WORKFLOW_FILE)"
+	@printf "$(BOLD)%-28s$(RESET) %s\n" "GIT_BRANCH" "$(GIT_BRANCH)"
+	$(call println,)
 
 # -------------------------------------------------------------------
 # CONFIG / UTIL
 # -------------------------------------------------------------------
 
 local-settings: ## 🧩 Print effective local settings
+	$(call section,🧩  Local settings)
 	@echo "LOCAL_SETTINGS=$(LOCAL_SETTINGS)"
-	@test -f "$(LOCAL_SETTINGS)" && cat "$(LOCAL_SETTINGS)" || echo "No local settings file found."
+	@test -f "$(LOCAL_SETTINGS)" && cat "$(LOCAL_SETTINGS)" || printf "%b\n" "$(GRAY)No local settings file found.$(RESET)"
 
 exec-bits: ## 🔧 Check & (optionally) auto-fix executable bits for tracked scripts
 	@CHECK_EXECUTABLE_BITS_CONFIG="$(LOCAL_SETTINGS)" ./scripts/check-executable-bits.sh
@@ -160,12 +288,33 @@ hooks: ## 🪝 Configure repo-local git hooks
 	@./scripts/install-hooks.sh
 
 doctor: ## 🩺 Local environment sanity checks
+	$(call group_start,doctor)
+	$(call step,🩺 Running doctor checks)
 	@./scripts/doctor.sh
+	$(call group_end)
+
+doctor-json: ## 🧪 Doctor JSON output
+	@DOCTOR_JSON=1 ./scripts/doctor.sh | jq .
+
+doctor-json-strict: ## 🚨 Doctor JSON strict (fail on warnings)
+	@DOCTOR_JSON=1 ./scripts/doctor.sh --strict | jq .
+
+doctor-json-pretty: ## 🧪 Doctor JSON output (pretty-printed for humans)
+	@if command -v jq >/dev/null 2>&1; then \
+	  DOCTOR_JSON=1 ./scripts/doctor.sh | jq . ; \
+	else \
+	  echo "⚠️  jq not found; printing raw JSON (install with: brew install jq)"; \
+	  DOCTOR_JSON=1 ./scripts/doctor.sh ; \
+	fi
 
 clean: ## 🧹 Clean build outputs
+	$(call step,🧹 Gradle clean)
+	$(call info,Running Gradle…)
 	@./gradlew --no-daemon -q clean
 
 clean-all: ## 🧹 Clean build + purge local caches (use sparingly)
+	$(call step,🧹 Clean + purge local caches)
+	$(call info,Running Gradle…)
 	@./gradlew --no-daemon -q clean
 	@rm -rf .gradle build
 
@@ -175,57 +324,83 @@ clean-all: ## 🧹 Clean build + purge local caches (use sparingly)
 
 pre-commit: ## 🪝 Smart pre-commit gate (strict on main)
 	@if [ "$(GIT_BRANCH)" = "main" ]; then \
-	  echo "🪝 pre-commit: on 'main' → running quality"; \
+	  printf "%b\n" "$(CYAN)🪝 pre-commit$(RESET): on '$(BOLD)main$(RESET)' → running $(BOLD)quality$(RESET)"; \
 	  $(MAKE) quality; \
 	else \
-	  echo "🪝 pre-commit: on '$(GIT_BRANCH)' → running fast gate (format + lint + test)"; \
+	  printf "%b\n" "$(CYAN)🪝 pre-commit$(RESET): on '$(BOLD)$(GIT_BRANCH)$(RESET)' → running fast gate ($(BOLD)format + lint + test$(RESET))"; \
 	  $(MAKE) format lint test; \
 	fi
 
 format: ## ✨ Auto-format sources
+	$(call group_start,format)
+	$(call step,✨ spotlessApply)
 	@if [ "$${NUKE_GRADLE_CACHE:-0}" = "1" ]; then \
-	  echo "⚠️  NUKE_GRADLE_CACHE=1 → removing Gradle caches"; \
+	  printf "%b\n" "$(YELLOW)⚠️  NUKE_GRADLE_CACHE=1$(RESET) → removing Gradle caches"; \
 	  rm -rf .gradle/configuration-cache .gradle/caches; \
 	fi
+	$(call info,Running Gradle…)
 	@./gradlew --no-daemon -q --no-configuration-cache spotlessApply
+	$(call group_end)
 
 lint: ## 🔎 Static analysis only (fast-ish)
+	$(call group_start,lint)
+	$(call step,🔎 Static analysis)
+	$(call info,Running Gradle…)
 	@./gradlew --no-daemon -q --no-configuration-cache checkstyleMain checkstyleTest pmdMain pmdTest spotbugsMain spotbugsTest
+	$(call group_end)
 
 test: ## 🧪 Unit tests
+	$(call group_start,test)
+	$(call step,🧪 Unit tests)
+	$(call info,Running Gradle…)
 	@./gradlew --no-daemon -q test
+	$(call group_end)
 
 verify: doctor lint test ## ✅ Doctor + lint + test
-	@echo "✅ verify complete"
+	@printf "%b\n" "$(GREEN)✅ verify complete$(RESET)"
 
 quality: doctor ## ✅ Doctor + spotlessCheck + clean check (matches CI intent)
+	$(call group_start,quality)
+	$(call step,✅ CI-parity quality gate)
+	$(call info,Running Gradle…)
 	@./gradlew --no-daemon -q spotlessCheck clean check
+	$(call group_end)
 
 test-ci: ## CI: Run CI-equivalent test suite locally
+	$(call group_start,test-ci)
+	$(call step,🧪 CI-like test run)
+	$(call info,Running Gradle…)
 	@./gradlew --no-daemon -q clean test
+	$(call group_end)
 
 bootstrap: hooks exec-bits quality ## 🚀 Install hooks + run full local quality gate
-	@echo "✅ bootstrap complete"
+	$(call step,🚀 bootstrap complete)
+	@printf "%b\n" "$(GREEN)✅ bootstrap complete$(RESET)"
 
 # -------------------------------------------------------------------
 # DOCKER / DB
 # -------------------------------------------------------------------
 
 docker-volume: ## 🐳 List local Docker volumes (postgres-focused)
+	$(call step,🐳 Listing postgres volumes)
 	@docker volume ls | grep -i postgres || true
 
 docker-up: ## 🐳 Start local Docker Compose services
+	$(call step,🐳 Starting Docker Compose)
 	@docker compose up -d
 
 docker-down: ## 🐳 Stop local Docker Compose services
+	$(call step,🐳 Stopping Docker Compose)
 	@docker compose down
 
 docker-reset: ## 🧨 Reset local Docker environment (containers + volumes)
-	@echo "⚠️  Resetting local Docker environment (containers + volumes)"
+	$(call step,🧨 Resetting Docker (containers + volumes))
+	@printf "%b\n" "$(YELLOW)⚠️  This will delete volumes.$(RESET)"
 	@docker compose down -v
 	@docker compose up -d
 
 db-shell: ## 🐘 Open a psql shell in the postgres container
+	$(call step,🐘 Opening psql shell)
 	@docker compose exec postgres psql -U $${POSTGRES_USER:-trainer} -d $${POSTGRES_DB:-trainer}
 
 # -------------------------------------------------------------------
@@ -235,28 +410,29 @@ db-shell: ## 🐘 Open a psql shell in the postgres container
 act: run-ci ## 🧪 Alias: run one workflow via act
 
 act-all: ## 🧪 Run all local CI workflows via act
+	$(call section,🧪  act — running all workflows)
 	@for wf in $(ACT_WORKFLOWS); do \
-	  echo ""; \
-	  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; \
-	  echo "🧪 act → workflow=$$wf"; \
-	  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; \
+	  printf "%b\n" "$(CYAN)▶$(RESET) $(BOLD)workflow$(RESET)=$$wf"; \
 	  $(MAKE) run-ci $$wf || exit $$?; \
 	done
 
 run-ci: ## 🧪 Run workflow/job via act (auto-detect event)
+	$(call group_start,act)
 	@if [ ! -f "$(WORKFLOW_FILE)" ]; then \
-	  echo "❌ Workflow not found: $(WORKFLOW_FILE)"; \
+	  printf "%b\n" "$(RED)❌ Workflow not found: $(WORKFLOW_FILE)$(RESET)"; \
 	  echo "👉 Try: ls .github/workflows"; \
 	  exit 1; \
 	fi
 
 	@mkdir -p "$(ACT_GRADLE_CACHE_DIR_EFFECTIVE)"
-	@echo "🧪 act → workflow=$(WORKFLOW) job=$(JOB)"
+	$(call step,🧪 act run)
+	@printf "%b\n" "$(GRAY)wf=$(WORKFLOW) job=$(JOB) file=$(WORKFLOW_FILE)$(RESET)"
+	@printf "%b\n" "$(GRAY)img=$(ACT_IMAGE) arch=$(ACT_PLATFORM) sock=$(ACT_DOCKER_SOCK) cache=$(ACT_GRADLE_CACHE_DIR_EFFECTIVE)$(RESET)"
 
 	@events="push pull_request workflow_dispatch"; \
 	if [ -n "$(JOB)" ]; then events="workflow_dispatch push pull_request"; fi; \
 	for ev in $$events; do \
-	  echo "🔎 trying event=$$ev"; \
+	  printf "%b\n" "$(GRAY)↳ trying event=$$ev$(RESET)"; \
 	  tmp="$$(mktemp)"; \
 	  set +e; \
 	  ACT=true $(ACT) $$ev \
@@ -275,10 +451,13 @@ run-ci: ## 🧪 Run workflow/job via act (auto-detect event)
 	  fi; \
 	  rm -f "$$tmp"; \
 	done; \
-	echo "❌ No runnable jobs found for workflow=$(WORKFLOW)"; \
+	printf "%b\n" "$(RED)❌ No runnable jobs found for workflow=$(WORKFLOW)$(RESET)"; \
+	printf "%b\n" "$(GRAY)Tip: run: $(ACT) -W $(WORKFLOW_FILE) --list$(RESET)"; \
 	exit 1
+	$(call group_end)
 
 list-ci: ## 📋 List jobs for a workflow via act
+	$(call step,📋 Listing act jobs)
 	@$(ACT) -W $(WORKFLOW_FILE) --list
 
 # Swallow extra args ONLY for targets that accept positionals
@@ -291,9 +470,11 @@ $(ARGS):
 # -------------------------------------------------------------------
 
 helm: ## 🧰 Helm is prep-only (ADR-009)
-	@echo "🧰 Helm is prep-only (ADR-009)."
+	$(call step,🧰 Helm (prep-only))
+	@printf "%b\n" "$(CYAN)Helm$(RESET) is prep-only $(GRAY)(ADR-009)$(RESET)."
 	@echo "See: docs/onboarding/HELM.md"
 
 deploy: ## 🚧 Deploy is not wired yet
-	@echo "🚧 Deploy is not wired yet."
+	$(call step,🚧 Deploy (not wired))
+	@printf "%b\n" "$(YELLOW)Deploy$(RESET) is not wired yet."
 	@echo "See: docs/onboarding/DEPLOY.md"
