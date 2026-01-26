@@ -14,6 +14,16 @@ If you follow the steps below, you should be able to:
 
 ---
 
+## ✅ Onboarding checklist (recommended)
+
+If you prefer a fast, check-off style confirmation that your local environment is ready, use the checklist below.
+
+- [`ONBOARDING_CHECKLIST.md`](./ONBOARDING_CHECKLIST.md)
+
+This checklist lives alongside this README and is intended to be re-verified after major environment or tooling changes.
+
+---
+
 ## 🚑 Doctor first (important)
 
 Before running Gradle, tests, or Docker-heavy workflows, always start with:
