@@ -1,3 +1,11 @@
+# -----------------------------------------------------------------------------
+# 90-helm.mk (90s — Delivery)
+#
+# Responsibility: Packaging and delivery tooling (helm, release packaging).
+#
+# Rule: High consequence. Require explicit intent and strong guards.
+# -----------------------------------------------------------------------------
+
 # -------------------------------------------------------------------
 # Helm / Deploy (prep-only)
 # -------------------------------------------------------------------

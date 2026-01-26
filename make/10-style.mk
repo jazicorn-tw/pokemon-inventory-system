@@ -1,3 +1,12 @@
+# -----------------------------------------------------------------------------
+# 10-style.mk (10s — Presentation)
+#
+# Responsibility: Human/CI output consistency.
+# - colors, separators, printing helpers (step/group)
+#
+# Rule: UX only. No business logic or side effects.
+# -----------------------------------------------------------------------------
+
 # -------------------------------------------------------------------
 # Console styling + printing helpers + grouped logs
 # -------------------------------------------------------------------

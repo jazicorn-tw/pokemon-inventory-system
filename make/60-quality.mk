@@ -1,3 +1,12 @@
+# -----------------------------------------------------------------------------
+# 60-quality.mk (60s — Build & Verification)
+#
+# Responsibility: Prove code correctness.
+# - format/lint/tests/static analysis/coverage
+#
+# Rule: Deterministic. Do not mutate machine state.
+# -----------------------------------------------------------------------------
+
 # -------------------------------------------------------------------
 # QUALITY / TESTS / BOOTSTRAP
 # -------------------------------------------------------------------

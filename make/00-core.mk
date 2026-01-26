@@ -1,6 +1,12 @@
-# -------------------------------------------------------------------
-# Core Make settings
-# -------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# 00-core.mk (00s — Kernel)
+#
+# Responsibility: Make the Makefile system possible.
+# - Shell flags, global constants, include wiring prerequisites
+# - OS/platform detection needed everywhere
+#
+# Rule: if this breaks, nothing else can run.
+# -----------------------------------------------------------------------------
 
 # Developer convenience aliases
 # These do NOT replace CI; they mirror ADR-000 locally.

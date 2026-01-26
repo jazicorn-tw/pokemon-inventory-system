@@ -1,3 +1,11 @@
+# -----------------------------------------------------------------------------
+# 80-act.mk (80s — Simulation & Automation)
+#
+# Responsibility: Simulate CI/workflows locally (act, CI-like orchestration).
+#
+# Rule: Assumes runtime is ready (or explicitly calls it).
+# -----------------------------------------------------------------------------
+
 # -------------------------------------------------------------------
 # act — Local GitHub Actions simulation
 # -------------------------------------------------------------------

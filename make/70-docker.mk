@@ -1,3 +1,12 @@
+# -----------------------------------------------------------------------------
+# 70-docker.mk (70s — Runtime Orchestration)
+#
+# Responsibility: Ensure local runtime prerequisites are running.
+# - Colima/Docker, compose stacks, local services/emulators
+#
+# Rule: Mutates machine state by design. Must be idempotent and safe to re-run.
+# -----------------------------------------------------------------------------
+
 # -------------------------------------------------------------------
 # DOCKER / DB
 # -------------------------------------------------------------------

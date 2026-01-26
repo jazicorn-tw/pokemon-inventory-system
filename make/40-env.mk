@@ -1,3 +1,12 @@
+# -----------------------------------------------------------------------------
+# 40-env.mk (40s — Preconditions)
+#
+# Responsibility: Verify workstation prerequisites (no side effects).
+# - required files, tool existence, version checks
+#
+# Rule: Checks only. Do not start/stop services here.
+# -----------------------------------------------------------------------------
+
 # -------------------------------------------------------------------
 # ENV / ACT (bootstrap helpers)
 # -------------------------------------------------------------------

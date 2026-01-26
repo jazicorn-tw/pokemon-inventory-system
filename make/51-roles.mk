@@ -1,3 +1,13 @@
+# -----------------------------------------------------------------------------
+# 51-roles.mk (Roles entrypoints)
+#
+# Responsibility: Role-based orchestration targets (e.g., contributor/maintainer).
+#
+# Placement note:
+# - If these targets are primarily "public entrypoints", treat as Interface.
+# - If they’re implementation glue that calls other targets, treat as Library.
+# -----------------------------------------------------------------------------
+
 # -------------------------------------------------------------------
 # WORKFLOWS / ROLE GATES
 # -------------------------------------------------------------------
