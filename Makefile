@@ -81,6 +81,10 @@ define info
 	$(call println,$(GRAY)$1$(RESET))
 endef
 
+define warn
+	$(call println,$(YELLOW)$1$(RESET))
+endef
+
 # =============================================================================
 # GROUPED LOGGING (CI-friendly, optional locally)
 #
@@ -121,6 +125,45 @@ define group_end
 	@:
 endef
 endif
+
+# -------------------------------------------------------------------
+# EXEC BIT GUARDS (DX) — context-aware + polished
+#
+# Features:
+# - Detects non-executable scripts
+# - Prints copy-pasteable chmod commands
+# - Only prints `cd <repo-root>` if NOT already in repo root
+# - Shows a thumbs up (👍) when already in repo root
+# - .ONESHELL-safe (uses plain printf)
+#
+# Usage:
+#   $(call require_exec,./scripts/foo.sh ./scripts/bar.sh)
+# -------------------------------------------------------------------
+
+define require_exec
+	@missing=""; \
+	for f in $(1); do \
+	  if [ ! -x "$$f" ]; then missing="$$missing $$f"; fi; \
+	done; \
+	if [ -n "$$missing" ]; then \
+	  repo_root="$$(git rev-parse --show-toplevel 2>/dev/null)"; \
+	  cwd="$$(pwd)"; \
+	  printf "%b\n" "$(RED)❌ Permission denied: non-executable script(s) detected$(RESET)"; \
+	  printf "%b\n" "$(GRAY)Fix by running the following commands:$(RESET)"; \
+	  printf "%b\n" ""; \
+	  if [ "$$cwd" = "$$repo_root" ]; then \
+	    printf "%b\n" "$(GREEN)👍 You are already in the repo root$(RESET)"; \
+	  else \
+	    printf "%b\n" "$(BOLD)cd \"$$repo_root\"$(RESET)"; \
+	  fi; \
+	  for f in $$missing; do \
+	    f="$${f#./}"; \
+	    printf "%b\n" "$(BOLD)chmod +x $$f$(RESET)"; \
+	  done; \
+	  printf "%b\n" ""; \
+	  exit 126; \
+	fi
+endef
 
 # -------------------------------------------------------------------
 # Developer settings
@@ -168,7 +211,8 @@ GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unkno
 .PHONY: \
   help help-short help-auto help-ci \
   explain debug \
-  local-settings exec-bits hooks doctor \
+  local-settings exec-bits hooks doctor doctor-json doctor-json-strict doctor-json-pretty \
+  check-env env-init env-init-force env-help \
   clean clean-all \
   format lint test verify quality test-ci bootstrap pre-commit \
   docker-volume docker-up docker-down docker-reset db-shell \
@@ -184,6 +228,7 @@ help: ## 🧰 Show developer help (curated)
 
 	$(call println,$(YELLOW)🚀 Recommended flow$(RESET))
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make demo" "→ onboarding walkthrough"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init" "→ create .env + ~/.actrc from examples"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make bootstrap" "→ first-time setup"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make verify" "→ before pushing"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make run-ci" "→ simulate CI locally (act)"
@@ -191,6 +236,10 @@ help: ## 🧰 Show developer help (curated)
 
 	$(call println,$(YELLOW)🧪 Quality gates$(RESET))
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make doctor" "→ local environment sanity checks"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make check-env" "→ verify required env files (.env + ~/.actrc)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init" "→ init env files from examples (safe)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init-force" "→ overwrite env files from examples ($(RED)⚠️ destructive$(RESET))"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-help" "→ docs: local environment setup"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make lint" "→ static analysis only (fast-ish)"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make test" "→ unit tests"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make verify" "→ doctor + lint + test"
@@ -220,6 +269,7 @@ help: ## 🧰 Show developer help (curated)
 	$(call println,$(GRAY)More: make help-short | make help-auto | make banner | make demo-ci | make doctor-json-demo | NO_COLOR=1 make help$(RESET))
 	$(call println,)
 
+
 help-short: ## 🧰 Quick help (minimal)
 	$(call section,🧰  Quick Make Targets)
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "demo" "onboarding walkthrough"
@@ -244,19 +294,30 @@ help-ci: ## 🧰 Show only CI-relevant targets
 	$(call println,)
 
 explain: ## 🧠 Explain a target: make explain <target>
-	@if [ -z "$(word 2,$(MAKECMDGOALS))" ]; then \
-	  printf "%b\n" "$(RED)❌ Usage: make explain <target>$(RESET)"; exit 1; \
-	fi
 	@t="$(word 2,$(MAKECMDGOALS))"; \
+	if [[ -z "$$t" ]]; then \
+	  printf "%b\n" "$(RED)❌ Usage: make explain <target>$(RESET)"; \
+	  printf "%b\n" "$(GRAY)Try one of: doctor check-env env-init env-init-force env-help bootstrap verify quality pre-commit run-ci$(RESET)"; \
+	  exit 1; \
+	fi; \
 	$(call section,🧠  explain → $${t}); \
 	case "$$t" in \
-	  doctor)  echo "doctor: runs local sanity checks (java/gradle/docker/colima/socket)";; \
-	  verify)  echo "verify: doctor + lint + test (recommended before pushing)";; \
-	  quality) echo "quality: doctor + spotlessCheck + clean + check (matches CI intent)";; \
-	  pre-commit) echo "pre-commit: smart gate (main → quality, others → fast gate)";; \
-	  run-ci)  echo "run-ci: run GitHub Actions workflows locally via act (wf defaults to ci-test; optional job)";; \
-	  *) echo "No extended explanation available for '$$t' (see docs/MAKEFILE.md)";; \
-	esac
+	  doctor)  printf "%b\n" "  $(BOLD)doctor$(RESET): runs local sanity checks (java, gradle, docker, colima, socket, env files)";; \
+	  check-env) printf "%b\n" "  $(BOLD)check-env$(RESET): verifies required local env files (.env and ~/.actrc) and permissions";; \
+	  env-init) printf "%b\n" "  $(BOLD)env-init$(RESET): create .env and ~/.actrc from example files (safe, non-destructive)";; \
+	  env-init-force) printf "%b\n" "  $(BOLD)env-init-force$(RESET): overwrite .env and ~/.actrc from examples ($(RED)⚠️ destructive$(RESET))";; \
+	  env-help) printf "%b\n" "  $(BOLD)env-help$(RESET): prints link to local environment setup documentation";; \
+	  bootstrap) printf "%b\n" "  $(BOLD)bootstrap$(RESET): env-init + hooks + exec-bits + full quality gate (first-time setup)";; \
+	  verify)  printf "%b\n" "  $(BOLD)verify$(RESET): doctor + lint + test (recommended before pushing)";; \
+	  quality) printf "%b\n" "  $(BOLD)quality$(RESET): doctor + spotlessCheck + clean + check (matches CI intent)";; \
+	  pre-commit) printf "%b\n" "  $(BOLD)pre-commit$(RESET): smart gate (main → quality, other branches → fast gate)";; \
+	  run-ci)  printf "%b\n" "  $(BOLD)run-ci$(RESET): run GitHub Actions workflows locally via act (wf defaults to ci-test; optional job)";; \
+	  *) \
+	    printf "%b\n" "$(YELLOW)⚠️  No extended explanation available for '$$t'.$(RESET)"; \
+	    printf "%b\n" "$(GRAY)Known: doctor check-env env-init env-init-force env-help bootstrap verify quality pre-commit run-ci$(RESET)"; \
+	    printf "%b\n" "$(GRAY)More: docs/MAKEFILE.md$(RESET)"; \
+	    ;; \
+	esac; \
 	$(call println,)
 
 debug: ## 🧾 Print effective tool configuration
@@ -273,8 +334,79 @@ debug: ## 🧾 Print effective tool configuration
 	$(call println,)
 
 # -------------------------------------------------------------------
+# ENV / ACT (bootstrap helpers)
+# -------------------------------------------------------------------
+
+env-help: ## 📖 Environment setup docs
+	$(call section,📖  Environment setup)
+	@echo "See: docs/onboarding/ENVIRONMENT.md"
+
+env-init: ## 🌱 Create local env files from examples (non-destructive)
+	$(call section,🌱  Environment init)
+	@set -euo pipefail; \
+	changed=0; \
+	\
+	# .env (project root) \
+	if [[ -f ".env" ]]; then \
+	  $(call info,.env already exists (skipping)); \
+	else \
+	  if [[ -f ".env.example" ]]; then \
+	    cp ".env.example" ".env"; \
+	    $(call step,Created .env from .env.example); \
+	    changed=1; \
+	  else \
+	    $(call warn,Missing .env.example — create .env manually (see docs/onboarding/ENVIRONMENT.md)); \
+	  fi; \
+	fi; \
+	\
+	# ~/.actrc (home directory) \
+	if [[ -f "$$HOME/.actrc" ]]; then \
+	  $(call info,$$HOME/.actrc already exists (skipping)); \
+	else \
+	  if [[ -f ".actrc.example" ]]; then \
+	    cp ".actrc.example" "$$HOME/.actrc"; \
+	    chmod 600 "$$HOME/.actrc"; \
+	    $(call step,Created $$HOME/.actrc from .actrc.example (chmod 600)); \
+	    changed=1; \
+	  else \
+	    $(call warn,Missing .actrc.example — create $$HOME/.actrc manually (see docs/onboarding/ENVIRONMENT.md)); \
+	  fi; \
+	fi; \
+	\
+	if [[ "$$changed" -eq 0 ]]; then \
+	  $(call println,$(GRAY)No changes made.$(RESET)); \
+	else \
+	  $(call println,$(GREEN)Done. Re-run: make doctor$(RESET)); \
+	fi
+
+env-init-force: ## 🚨 Force overwrite env files from examples (destructive)
+	$(call section,🚨  Environment init (force))
+	@set -euo pipefail; \
+	\
+	if [[ -f ".env.example" ]]; then \
+	  cp ".env.example" ".env"; \
+	  $(call step,Overwrote .env from .env.example); \
+	else \
+	  $(call warn,Missing .env.example — cannot overwrite .env); \
+	fi; \
+	\
+	if [[ -f ".actrc.example" ]]; then \
+	  cp ".actrc.example" "$$HOME/.actrc"; \
+	  chmod 600 "$$HOME/.actrc"; \
+	  $(call step,Overwrote $$HOME/.actrc from .actrc.example (chmod 600)); \
+	else \
+	  $(call warn,Missing .actrc.example — cannot overwrite $$HOME/.actrc); \
+	fi; \
+	\
+	$(call println,$(GREEN)Done. Re-run: make doctor$(RESET))
+
+# -------------------------------------------------------------------
 # CONFIG / UTIL
 # -------------------------------------------------------------------
+
+check-env: ## 🌱 Verify required local env files (.env + ~/.actrc)
+	$(call require_exec,./scripts/check-required-files.sh)
+	@./scripts/check-required-files.sh
 
 local-settings: ## 🧩 Print effective local settings
 	$(call section,🧩  Local settings)
@@ -282,12 +414,15 @@ local-settings: ## 🧩 Print effective local settings
 	@test -f "$(LOCAL_SETTINGS)" && cat "$(LOCAL_SETTINGS)" || printf "%b\n" "$(GRAY)No local settings file found.$(RESET)"
 
 exec-bits: ## 🔧 Check & (optionally) auto-fix executable bits for tracked scripts
+	$(call require_exec,./scripts/check-executable-bits.sh)
 	@CHECK_EXECUTABLE_BITS_CONFIG="$(LOCAL_SETTINGS)" ./scripts/check-executable-bits.sh
 
 hooks: ## 🪝 Configure repo-local git hooks
+	$(call require_exec,./scripts/install-hooks.sh)
 	@./scripts/install-hooks.sh
 
-doctor: ## 🩺 Local environment sanity checks
+doctor: check-env ## 🩺 Local environment sanity checks
+	$(call require_exec,./scripts/doctor.sh)
 	$(call group_start,doctor)
 	$(call step,🩺 Running doctor checks)
 	@./scripts/doctor.sh
@@ -373,7 +508,7 @@ test-ci: ## CI: Run CI-equivalent test suite locally
 	@./gradlew --no-daemon -q clean test
 	$(call group_end)
 
-bootstrap: hooks exec-bits quality ## 🚀 Install hooks + run full local quality gate
+bootstrap: env-init hooks exec-bits quality ## 🚀 Install env + hooks + run full local quality gate
 	$(call step,🚀 bootstrap complete)
 	@printf "%b\n" "$(GREEN)✅ bootstrap complete$(RESET)"
 

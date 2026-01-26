@@ -1,0 +1,18 @@
+# act — example configuration for local CI simulation
+#
+# Usage:
+#   cp .actrc.example ~/.actrc
+#
+# Notes:
+# - ~/.actrc is read automatically by act
+# - Do NOT commit ~/.actrc (machine-specific)
+# - Applies to all act runs on this machine
+
+# Match GitHub-hosted runner image
+-P ubuntu-latest=catthehacker/ubuntu:full-latest
+
+# Force CI parity (GitHub runners are amd64)
+--platform linux/amd64
+
+# Run runner as root (required for docker.sock access)
+--container-options "--user 0:0"
