@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# 80-act.mk (80s — Simulation & Automation)
+# 80-simulation.mk (80s — Simulation & Automation)
 #
 # Responsibility: Simulate CI/workflows locally (act, CI-like orchestration).
 #
@@ -27,7 +27,6 @@ act-all-ci: ## 🧪 Run CI-only workflows via act (skips image workflows)
 	  printf "%b\n" "$(CYAN)▶$(RESET) $(BOLD)workflow$(RESET)=$$wf"; \
 	  $(MAKE) run-ci $$wf || exit $$?; \
 	done
-
 run-ci: ## 🧪 Run workflow/job via act (auto-detect event)
 	$(call group_start,act)
 	@if [ ! -f "$(WORKFLOW_FILE)" ]; then \
@@ -35,6 +34,9 @@ run-ci: ## 🧪 Run workflow/job via act (auto-detect event)
 	  echo "👉 Try: ls .github/workflows"; \
 	  exit 1; \
 	fi
+
+	@# Preflight: ensure required local files exist for act runs (.vars, .env, ~/.actrc).
+	@REQUIRE_ACT_VARS=1 ./scripts/check-required-files.sh >/dev/null
 
 	@mkdir -p "$(ACT_GRADLE_CACHE_DIR_EFFECTIVE)"
 	$(call step,🧪 act run)
@@ -47,7 +49,7 @@ run-ci: ## 🧪 Run workflow/job via act (auto-detect event)
 	  printf "%b\n" "$(GRAY)↳ trying event=$$ev$(RESET)"; \
 	  tmp="$$(mktemp)"; \
 	  set +e; \
-	  ACT=true $(ACT) $$ev \
+	  REQUIRE_ACT_VARS=1 ACT=true $(ACT) $$ev \
 	    -W $(WORKFLOW_FILE) \
 	    $(if $(JOB),-j $(JOB),) \
 	    -P ubuntu-latest=$(ACT_IMAGE) \

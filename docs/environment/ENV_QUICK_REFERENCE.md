@@ -29,7 +29,7 @@ DEPLOY_ENABLED            # true|false — global deployment kill switch
 
 - `CI_FEATURE_FLAGS.md`
 - `RELEASES.md`
-- `ENV_REMOTE_SPEC.md`
+- `ENV_SPEC_CI.md`
 
 ---
 
@@ -44,7 +44,7 @@ SPRING_MAIN_BANNER_MODE  # optional — off|console|log (often off in CI)
 ```
 
 📄 See: `RUNTIME_APPLICATION.md`  
-📄 See also: `REPO_VARIABLES.md`
+📄 See also: `ENV_SPEC.md`
 
 ---
 

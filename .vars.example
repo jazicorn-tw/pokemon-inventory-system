@@ -1,0 +1,18 @@
+# -----------------------------------------------------------------------------
+# .vars — act / local CI repo variables (LOCAL ONLY)
+#
+# This file mirrors GitHub *repository variables* for local `act` runs.
+#
+# - Loaded automatically by `act`
+# - Must NOT be committed
+# - Contains NON-SECRET values only
+#
+# See docs/devops/RELEASE_GATING.md for details.
+# -----------------------------------------------------------------------------
+
+# Enable semantic-release locally when running with `act`
+ENABLE_SEMANTIC_RELEASE=true
+
+# Canonical repository allowed to publish artifacts
+# Format: <owner>/<repo>
+CANONICAL_REPOSITORY=jazicorn-tw/pokemon-trainer-platform

@@ -29,7 +29,7 @@ DEPLOY_ENABLED            # true|false — global deployment kill switch
 
 📄 See:
 
-- `ENV_REMOTE_SPEC.md`
+- `ENV_SPEC_CI.md`
 - `CI_FEATURE_FLAGS.md`
 - `RELEASES.md`
 
@@ -48,7 +48,7 @@ GITHUB_SHA            # commit SHA
 GITHUB_REPOSITORY     # owner/repo
 ```
 
-📄 See: `ENV_REMOTE_SPEC.md`
+📄 See: `ENV_SPEC_CI.md`
 
 ---
 
@@ -93,7 +93,7 @@ GHCR_TOKEN
 
 📄 See:
 
-- `ENV_REMOTE_SPEC.md`
+- `ENV_SPEC_CI.md`
 - `SECURITY_AUTH.md`
 
 ---

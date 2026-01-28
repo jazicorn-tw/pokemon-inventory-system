@@ -48,12 +48,34 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Disable git hooks for release automation
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/empty-git-hooks
+          git config core.hooksPath /tmp/empty-git-hooks
+
       - name: Generate GitHub App token
         id: app-token
         uses: tibdex/github-app-token@v2
         with:
           app_id: ${{ secrets.GH_APP_ID }}
-          private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          private_key: ${{ fromJSON(format('"{0}"', secrets.GH_APP_PRIVATE_KEY)) }}
+
+      - name: Force HTTPS git remote (avoid SSH in act)
+        run: |
+          set -euo pipefail
+
+          # Ensure the token never shows up in logs
+          echo "::add-mask::${GH_TOKEN}"
+
+          # Make origin use HTTPS (semantic-release calls git under the hood)
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          # Also rewrite any ssh-style GitHub URLs that tools might use
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Release gate summary
         run: |
@@ -83,14 +105,55 @@ jobs:
       # Replaces:
       # - uses: gradle/wrapper-validation-action@v2
       # and also provides Gradle caching
-      - name: Set up Gradle (wrapper validation + caching)
+      - name: Disable job summary under act
+        if: ${{ github.actor == 'nektos/act' }}
+        run: |
+          # Prevent actions from writing HTML summaries to the console under act
+          echo "GITHUB_STEP_SUMMARY=/dev/null" >> "$GITHUB_ENV"
+
+      # ------------------------------------------------------------
+      # Gradle setup
+      # - CI: use official action (wrapper validation + caching + summary)
+      # - act: run Gradle directly (no HTML job summary spam)
+      # ------------------------------------------------------------
+
+      - name: Set up Gradle (CI only — wrapper validation + caching)
+        if: ${{ github.actor != 'nektos/act' }}
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Set up Node
+      - name: Gradle (act only — lightweight)
+        if: ${{ github.actor == 'nektos/act' }}
+        env:
+          # Keep Gradle isolated & predictable under act
+          GRADLE_USER_HOME: ${{ github.workspace }}/.gradle
+        run: |
+          set -euo pipefail
+          echo "::group::🐘 Gradle (act)"
+          ./gradlew --version
+          echo "::endgroup::"
+
+      - name: Ensure runner temp dirs (act only)
+        if: ${{ github.actor == 'nektos/act' }}
+        run: |
+          mkdir -p /tmp/runner-temp /tmp/runner-tool-cache
+          echo "RUNNER_TEMP=/tmp/runner-temp" >> "$GITHUB_ENV"
+          echo "RUNNER_TOOL_CACHE=/tmp/runner-tool-cache" >> "$GITHUB_ENV"
+
+      - name: Set up Node (CI only)
+        if: ${{ github.actor != 'nektos/act' }}
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
+
+      - name: Node (act only — use preinstalled)
+        if: ${{ github.actor == 'nektos/act' }}
+        run: |
+          set -euo pipefail
+          echo "::group::🟩 Node (act)"
+          node --version
+          npm --version
+          echo "::endgroup::"
 
       - name: Install semantic-release deps
         run: npm ci

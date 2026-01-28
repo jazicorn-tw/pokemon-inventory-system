@@ -11,22 +11,33 @@ set -euo pipefail
 #
 # Checks:
 #   - .env exists in project root
+#   - .vars exists in project root (ONLY required for local `act` runs)
 #   - ~/.actrc exists
 #   - ~/.actrc permissions are safe (600 recommended)
 #
 # Config:
 #   - STRICT_ACTRC_PERMS=1  -> treat unsafe ~/.actrc permissions as an error
 #                              (default: warn only)
+#
+#   - REQUIRE_ACT_VARS=1    -> require .vars (treat missing as an error)
+#                              (default: warn only)
+#
+# Notes:
+# - `.vars` mirrors GitHub repository variables for `act`.
+# - `.vars` is intentionally gitignored.
 # -----------------------------------------------------------------------------
 
 PROJECT_ENV=".env"
+PROJECT_VARS=".vars"
 ACTRC="$HOME/.actrc"
 
-DOCS_ENV="docs/onboarding/ENVIRONMENT.md"
-DOCS_ACT="docs/onboarding/ENVIRONMENT.md#-%EF%B8%8F-actrc-home-directory"
+DOCS_ENV="docs/environment/ENV_SPEC.md"
+DOCS_VARS="docs/devops/RELEASE_GATING.md"
+DOCS_ACT="docs/ci/act/ACT_OVERVIEW.md"
 
 JSON_MODE="${DOCTOR_JSON:-0}"
 STRICT_ACTRC_PERMS="${STRICT_ACTRC_PERMS:-0}"
+REQUIRE_ACT_VARS="${REQUIRE_ACT_VARS:-0}"
 
 # ANSI colors (safe even if Make disables color upstream)
 ORANGE="\033[38;5;208m"
@@ -107,6 +118,19 @@ if [[ ! -f "$PROJECT_ENV" ]]; then
   fail "Missing $PROJECT_ENV (project root). See: $DOCS_ENV"
 elif [[ "$JSON_MODE" != "1" ]]; then
   printf "%b\n" "${GREEN}✅ Found $PROJECT_ENV${RESET}"
+fi
+
+# -----------------------
+# .vars (project root) — required only for local act runs
+# -----------------------
+if [[ ! -f "$PROJECT_VARS" ]]; then
+  if [[ "$REQUIRE_ACT_VARS" == "1" ]]; then
+    fail "Missing $PROJECT_VARS (project root). Create it with: cp .vars.example .vars — See: $DOCS_VARS"
+  else
+    warn "Missing $PROJECT_VARS (recommended for local act). Create it with: cp .vars.example .vars — See: $DOCS_VARS"
+  fi
+elif [[ "$JSON_MODE" != "1" ]]; then
+  printf "%b\n" "${GREEN}✅ Found $PROJECT_VARS${RESET}"
 fi
 
 # -----------------------
