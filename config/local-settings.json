@@ -12,7 +12,10 @@
     }
   },
   "git": { 
-    "autoInstallHooks": true 
+    "autoInstallHooks": true,
+    "releaseConfirm": {
+      "strictDefault": false
+    } 
   }, 
   "make": { 
     "defaultTarget": "verify" 

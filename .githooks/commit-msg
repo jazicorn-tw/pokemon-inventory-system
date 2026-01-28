@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Enforce Conventional Commits via Commitizen (cz).
+# Enforce Conventional Commits via Commitizen (cz), then (optionally) warn/prompt
+# if the commit message would trigger semantic-release.
+#
 # Git passes the commit message file path as $1.
 #
 # IMPORTANT:
 # This file must contain ONLY hook logic.
-# Installer/setup commands (cat >..., chmod +x..., mkdir -p...) belong in scripts/,
-# not in this hook.
+# Installer/setup commands belong in scripts/, not in this hook.
 
 # Guard against accidentally committing installer commands into the hook.
 # Ignore comment lines; only fail on actual command lines.
@@ -23,15 +24,33 @@ fi
 
 # One-off bypass (use sparingly)
 if [[ "${SKIP_COMMIT_MSG_CHECK:-}" == "1" ]]; then
-  echo "commit-msg: SKIP_COMMIT_MSG_CHECK=1 set; skipping commit message validation."
+  echo "commit-msg: SKIP_COMMIT_MSG_CHECK=1 set; skipping commit message validation + release confirmation."
   exit 0
 fi
 
+# ---------------------------------------------------------------------
+# 1) Commitizen validation
+# ---------------------------------------------------------------------
 if ! command -v cz >/dev/null 2>&1; then
   echo "commit-msg: 'cz' not found. Install Commitizen or run commits via 'cz commit'." >&2
   echo "  Tip: pipx install commitizen" >&2
   exit 1
 fi
 
-# Validate the commit message file.
 cz check --commit-msg-file "$1"
+
+# ---------------------------------------------------------------------
+# 2) Release-trigger confirmation (synced to semantic-release if available)
+# ---------------------------------------------------------------------
+# Opt-out for one commit:
+#   CONFIRM_RELEASE_COMMIT=0 git commit -m "feat: ..."
+#
+# Non-interactive behavior (if you really need it):
+#   RELEASE_CONFIRM_NONINTERACTIVE=allow git commit -m "feat: ..."
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -n "${repo_root}" ]]; then
+  confirm_script="${repo_root}/scripts/git/confirm-release-commit.sh"
+  if [[ -x "${confirm_script}" ]]; then
+    "${confirm_script}" "$1"
+  fi
+fi
