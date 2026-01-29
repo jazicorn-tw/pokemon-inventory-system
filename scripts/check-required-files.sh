@@ -4,43 +4,25 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 # check-required-files.sh
 #
-# Convention-aligned doctor check:
+# Baseline doctor check (required for everyone):
 # - Fails fast (errors)
 # - Quiet + machine-readable when DOCTOR_JSON=1
 # - Human-friendly otherwise
 #
 # Checks:
 #   - .env exists in project root
-#   - .vars exists in project root (ONLY required for local `act` runs)
-#   - ~/.actrc exists
-#   - ~/.actrc permissions are safe (600 recommended)
-#
-# Config:
-#   - STRICT_ACTRC_PERMS=1  -> treat unsafe ~/.actrc permissions as an error
-#                              (default: warn only)
-#
-#   - REQUIRE_ACT_VARS=1    -> require .vars (treat missing as an error)
-#                              (default: warn only)
 #
 # Notes:
-# - `.vars` mirrors GitHub repository variables for `act`.
-# - `.vars` is intentionally gitignored.
+# - This script intentionally excludes act-only requirements (.vars, ~/.actrc, .secrets).
+#   Those are checked by: scripts/check-required-files-act.sh
 # -----------------------------------------------------------------------------
 
 PROJECT_ENV=".env"
-PROJECT_VARS=".vars"
-ACTRC="$HOME/.actrc"
-
 DOCS_ENV="docs/environment/ENV_SPEC.md"
-DOCS_VARS="docs/devops/RELEASE_GATING.md"
-DOCS_ACT="docs/ci/act/ACT_OVERVIEW.md"
 
 JSON_MODE="${DOCTOR_JSON:-0}"
-STRICT_ACTRC_PERMS="${STRICT_ACTRC_PERMS:-0}"
-REQUIRE_ACT_VARS="${REQUIRE_ACT_VARS:-0}"
 
 # ANSI colors (safe even if Make disables color upstream)
-ORANGE="\033[38;5;208m"
 RED="\033[1;31m"
 GREEN="\033[1;32m"
 GRAY="\033[90m"
@@ -56,7 +38,7 @@ emit_json() {
     --argjson errors "$(printf '%s\n' "${errors[@]:-}" | jq -R . | jq -s .)" \
     --argjson warnings "$(printf '%s\n' "${warnings[@]:-}" | jq -R . | jq -s .)" '
     {
-      check: "required-files",
+      check: "required-files-baseline",
       status: $status,
       errors: $errors,
       warnings: $warnings
@@ -69,48 +51,6 @@ fail() {
   errors+=("$1")
 }
 
-warn() {
-  warnings+=("$1")
-}
-
-print_actrc_perm_warning() {
-  local perms="$1"
-
-  echo ""
-  printf "%b\n" "${ORANGE}⚠️  Security warning: ~/.actrc permissions are ${perms} (recommended 600)${RESET}"
-  echo ""
-  printf "%b\n" "${GRAY}Risk:${RESET}"
-  echo "  - Other users on this machine may be able to read your act configuration."
-  echo "  - ~/.actrc can include registry credentials, socket paths, or env overrides."
-  echo ""
-  printf "%b\n" "${GRAY}Fix (run from anywhere):${RESET}"
-  printf "%b\n" "  👉 chmod 600 ~/.actrc"
-  echo ""
-  printf "%b\n" "${GRAY}Docs:${RESET}"
-  echo "  - ${DOCS_ACT}"
-  echo ""
-}
-
-print_actrc_perm_error() {
-  local perms="$1"
-
-  echo ""
-  printf "%b\n" "${RED}❌ Security error (STRICT_ACTRC_PERMS=1)${RESET}"
-  echo ""
-  echo "~/.actrc permissions are ${perms} (required: 600)"
-  echo ""
-  printf "%b\n" "${GRAY}Why this failed:${RESET}"
-  echo "  - STRICT_ACTRC_PERMS is enabled"
-  echo "  - ~/.actrc may contain credentials or sensitive config"
-  echo ""
-  printf "%b\n" "${GRAY}Fix:${RESET}"
-  printf "%b\n" "  👉 chmod 600 ~/.actrc"
-  echo ""
-  printf "%b\n" "${GRAY}Docs:${RESET}"
-  echo "  - ${DOCS_ACT}"
-  echo ""
-}
-
 # -----------------------
 # .env (project root)
 # -----------------------
@@ -118,39 +58,6 @@ if [[ ! -f "$PROJECT_ENV" ]]; then
   fail "Missing $PROJECT_ENV (project root). See: $DOCS_ENV"
 elif [[ "$JSON_MODE" != "1" ]]; then
   printf "%b\n" "${GREEN}✅ Found $PROJECT_ENV${RESET}"
-fi
-
-# -----------------------
-# .vars (project root) — required only for local act runs
-# -----------------------
-if [[ ! -f "$PROJECT_VARS" ]]; then
-  if [[ "$REQUIRE_ACT_VARS" == "1" ]]; then
-    fail "Missing $PROJECT_VARS (project root). Create it with: cp .vars.example .vars — See: $DOCS_VARS"
-  else
-    warn "Missing $PROJECT_VARS (recommended for local act). Create it with: cp .vars.example .vars — See: $DOCS_VARS"
-  fi
-elif [[ "$JSON_MODE" != "1" ]]; then
-  printf "%b\n" "${GREEN}✅ Found $PROJECT_VARS${RESET}"
-fi
-
-# -----------------------
-# ~/.actrc (home)
-# -----------------------
-if [[ ! -f "$ACTRC" ]]; then
-  fail "Missing $ACTRC (home directory). See: $DOCS_ACT"
-else
-  perms="$(stat -c '%a' "$ACTRC" 2>/dev/null || stat -f '%Lp' "$ACTRC")"
-  if [[ "$perms" != "600" ]]; then
-    if [[ "$STRICT_ACTRC_PERMS" == "1" ]]; then
-      fail "~/.actrc permissions are $perms (required 600 in STRICT mode)"
-      [[ "$JSON_MODE" != "1" ]] && print_actrc_perm_error "$perms"
-    else
-      warn "~/.actrc permissions are $perms (recommended 600) — fix: chmod 600 ~/.actrc"
-      [[ "$JSON_MODE" != "1" ]] && print_actrc_perm_warning "$perms"
-    fi
-  elif [[ "$JSON_MODE" != "1" ]]; then
-    printf "%b\n" "${GREEN}✅ Found $ACTRC (permissions OK)${RESET}"
-  fi
 fi
 
 # -----------------------
@@ -167,18 +74,11 @@ if [[ "$status" == "fail" ]]; then
   for err in "${errors[@]}"; do
     echo "   - $err"
   done
+  echo ""
+  printf "%b\n" "${GRAY}Fix:${RESET}"
+  echo "  👉 Run: make env-init"
+  echo "  📖 Docs: $DOCS_ENV"
   exit 1
-fi
-
-if [[ "${#warnings[@]}" -gt 0 ]]; then
-  echo ""
-  printf "%b\n" "${ORANGE}⚠️  Warnings (non-fatal):${RESET}"
-  for w in "${warnings[@]}"; do
-    echo "   - $w"
-  done
-  echo ""
-  printf "%b\n" "${GREEN}✅ Required environment checks passed (with warnings).${RESET}"
-  exit 0
 fi
 
 printf "%b\n" "${GREEN}🎉 Required environment checks passed.${RESET}"

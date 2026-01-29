@@ -60,17 +60,25 @@ help-roles: ## 🧑‍💼 Opinionated role/workflow entrypoints
 
 help-onboarding: ## 🧰 First-time setup & onboarding
 	$(call section,🧰  Onboarding & Setup)
-	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init" "→ create .env + ~/.actrc from examples"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init" "→ create .env from example"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init-act" "→ create act env (.vars + .secrets + ~/.actrc) from examples"
 	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-help" "→ docs: local environment setup"
-	@printf "  $(BOLD)%-18s$(RESET) %s\n" "bootstrap" "→ first-time setup"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "bootstrap" "→ first-time setup (dev)"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "bootstrap-act" "→ first-time setup for local CI simulation (act)"
 	$(call println,)
 
 help-env: ## 🧰 Local env & configuration
 	$(call section,🧰  Env & Local Config)
-	@printf "  $(BOLD)%-18s$(RESET) %s\n" "check-env" "→ verify required env files (.env + ~/.actrc)"
-	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init" "→ init env files from examples (safe)"
-	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init-force" "→ overwrite env files from examples ($(RED)⚠️ destructive$(RESET))"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "check-env" "→ verify required env file (.env)"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init" "→ init baseline env from examples (safe)"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init-force" "→ overwrite baseline env from examples ($(RED)⚠️ destructive$(RESET))"
+	$(call println,)
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "check-env-act" "→ verify act env files (.vars + .secrets + ~/.actrc)"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init-act" "→ init act env files from examples (safe)"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-init-act-force" "→ overwrite act env files from examples ($(RED)⚠️ destructive$(RESET))"
+	$(call println,)
 	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-help" "→ docs: local environment setup"
+	@printf "  $(BOLD)%-18s$(RESET) %s\n" "env-help-act" "→ docs: act environment setup"
 	@printf "  $(BOLD)%-18s$(RESET) %s\n" "debug" "→ print effective tool configuration"
 	$(call println,)
 
@@ -103,6 +111,7 @@ help-category-inspection: ## 🧭 Inspection / Navigation
 
 help-act: ## 🧪 Local CI with act
 	$(call section,🧪  act — Local GitHub Actions)
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "bootstrap-act" "→ first-time setup for local CI simulation"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "run-ci" "→ run via act (default wf=ci-test)"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "list-ci" "→ list jobs for workflow via act"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "act" "→ alias: run-ci"
@@ -115,6 +124,7 @@ help-ci: ## 🧰 CI-relevant targets only
 	@printf "  $(BOLD)%-12s$(RESET) %s\n" "verify" "→ doctor + lint + test"
 	@printf "  $(BOLD)%-12s$(RESET) %s\n" "quality" "→ doctor + spotlessCheck + clean check"
 	@printf "  $(BOLD)%-12s$(RESET) %s\n" "test-ci" "→ clean test (CI-like)"
+	@printf "  $(BOLD)%-12s$(RESET) %s\n" "bootstrap-act" "→ setup local CI simulation prereqs"
 	@printf "  $(BOLD)%-12s$(RESET) %s\n" "run-ci" "→ run workflows via act"
 	@printf "  $(BOLD)%-12s$(RESET) %s\n" "list-ci" "→ list act jobs"
 	$(call println,)

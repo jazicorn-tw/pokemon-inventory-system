@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# 60-quality.mk (60s — Build & Verification)
+# 60-verification.mk (60s — Build & Verification)
 #
 # Responsibility: Prove code correctness.
 # - format/lint/tests/static analysis/coverage
@@ -11,7 +11,7 @@
 # QUALITY / TESTS / BOOTSTRAP
 # -------------------------------------------------------------------
 
-.PHONY: pre-commit format lint test verify quality test-ci bootstrap
+.PHONY: pre-commit format lint test verify quality test-ci bootstrap bootstrap-act
 
 pre-commit: ## 🪝 Smart pre-commit gate (strict on main)
 	@if [ "$(GIT_BRANCH)" = "main" ]; then \
@@ -67,3 +67,8 @@ test-ci: ## CI: Run CI-equivalent test suite locally
 bootstrap: env-init hooks exec-bits quality ## 🚀 Install env + hooks + run full local quality gate
 	$(call step,🚀 bootstrap complete)
 	@printf "%b\n" "$(GREEN)✅ bootstrap complete$(RESET)"
+
+bootstrap-act: env-init-act check-env-act hooks exec-bits ## 🧪 Install act env + hooks (enables local CI simulation)
+	$(call step,🧪 bootstrap-act complete)
+	@printf "%b\n" "$(GREEN)✅ bootstrap-act complete$(RESET)"
+	@printf "%b\n" "$(GRAY)Next: make run-ci (or make act-all)$(RESET)"

@@ -18,10 +18,11 @@ help: ## 🧰 Show developer help (curated)
 
 	$(call println,$(YELLOW)🚀 Recommended flow$(RESET))
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make help-categories" "→ discover help by category"
-	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make make-roles" "→ discover role entrypoints"
-	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init" "→ create .env + ~/.actrc from examples"
-	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make bootstrap" "→ first-time setup"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make help-roles" "→ discover role entrypoints"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init" "→ create .env from example"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make bootstrap" "→ first-time setup (dev)"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make verify" "→ before pushing"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make bootstrap-act" "→ one-time setup for local CI simulation (act)"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make run-ci" "→ simulate CI locally (act)"
 	$(call println,)
 
@@ -34,9 +35,9 @@ help: ## 🧰 Show developer help (curated)
 
 	$(call println,$(YELLOW)🧪 Quality gates$(RESET))
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make doctor" "→ local environment sanity checks"
-	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make check-env" "→ verify required env files (.env + ~/.actrc)"
-	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init" "→ init env files from examples (safe)"
-	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init-force" "→ overwrite env files from examples ($(RED)⚠️ destructive$(RESET))"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make check-env" "→ verify required env file (.env)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init" "→ init baseline env from examples (safe)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init-force" "→ overwrite baseline env from examples ($(RED)⚠️ destructive$(RESET))"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-help" "→ docs: local environment setup"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make lint" "→ static analysis only (fast-ish)"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make test" "→ unit tests"
@@ -57,11 +58,14 @@ help: ## 🧰 Show developer help (curated)
 	$(call println,)
 
 	$(call println,$(YELLOW)🧪 act (local GitHub Actions)$(RESET))
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make env-init-act" "→ create act env (.vars + .secrets + ~/.actrc) from examples"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make check-env-act" "→ verify act env files (.vars + .secrets + ~/.actrc)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make bootstrap-act" "→ one-time setup for local CI simulation (act)"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make run-ci [wf] [job]" "→ run via act (default wf=ci-test)"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make list-ci [wf]" "→ list jobs for workflow via act"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make act" "→ alias: make run-ci"
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make act-all" "→ run ALL workflows (auto-discovered) via act"
-	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make act-all-ci" "→ run CI-only workflows (skips image workflows) via act"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make act-all-ci" "→ run CI-only workflows (skips image/publish workflows) via act"
 	$(call println,)
 
 	$(call println,$(YELLOW)📦 Delivery (high consequence)$(RESET))
@@ -80,11 +84,12 @@ help-short: ## 🧰 Quick help (minimal)
 	$(call section,🧰  Quick Make Targets)
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "help" "curated help (recommended)"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "help-categories" "discover help by category"
-	@printf "  $(BOLD)%-16s$(RESET) %s\n" "make-roles" "discover help by role (contributor/reviewer/maintainer)"
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "help-roles" "discover help by role (contributor/reviewer/maintainer)"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "contributor" "role gate: run PR-ready checks"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "doctor" "local environment sanity checks"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "verify" "doctor + lint + test"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "quality" "CI-parity gate"
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "bootstrap-act" "one-time act setup"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "run-ci" "simulate CI via act"
 	$(call println,)
 
@@ -97,17 +102,22 @@ explain: ## 🧠 Explain a target: make explain <target>
 	@t="$(word 2,$(MAKECMDGOALS))"; \
 	if [[ -z "$$t" ]]; then \
 	  printf "%b\n" "$(RED)❌ Usage: make explain <target>$(RESET)"; \
-	  printf "%b\n" "$(GRAY)Try one of: doctor check-env env-init env-init-force env-help bootstrap verify quality pre-commit run-ci$(RESET)"; \
+	  printf "%b\n" "$(GRAY)Try one of: doctor check-env env-init env-init-force env-init-act env-init-act-force check-env-act env-help env-help-act bootstrap bootstrap-act verify quality pre-commit run-ci$(RESET)"; \
 	  exit 1; \
 	fi; \
 	$(call section,🧠  explain → $${t}); \
 		case "$$t" in \
 	  doctor)  printf "%b\n" "  $(BOLD)doctor$(RESET): runs local sanity checks (java, gradle, docker, colima, socket, env files)";; \
-	  check-env) printf "%b\n" "  $(BOLD)check-env$(RESET): verifies required local env files (.env and ~/.actrc) and permissions";; \
-	  env-init) printf "%b\n" "  $(BOLD)env-init$(RESET): create .env and ~/.actrc from example files (safe, non-destructive)";; \
-	  env-init-force) printf "%b\n" "  $(BOLD)env-init-force$(RESET): overwrite .env and ~/.actrc from examples ($(RED)⚠️ destructive$(RESET))";; \
+	  check-env) printf "%b\n" "  $(BOLD)check-env$(RESET): verifies required baseline env file (.env)";; \
+	  env-init) printf "%b\n" "  $(BOLD)env-init$(RESET): create .env from example file (safe, non-destructive)";; \
+	  env-init-force) printf "%b\n" "  $(BOLD)env-init-force$(RESET): overwrite .env from example ($(RED)⚠️ destructive$(RESET))";; \
 	  env-help) printf "%b\n" "  $(BOLD)env-help$(RESET): prints link to local environment setup documentation";; \
-	  bootstrap) printf "%b\n" "  $(BOLD)bootstrap$(RESET): env-init + hooks + exec-bits + full quality gate (first-time setup)";; \
+	  env-init-act) printf "%b\n" "  $(BOLD)env-init-act$(RESET): create act env files (.vars + .secrets + ~/.actrc) from examples (safe)";; \
+	  env-init-act-force) printf "%b\n" "  $(BOLD)env-init-act-force$(RESET): overwrite act env files from examples ($(RED)⚠️ destructive$(RESET))";; \
+	  check-env-act) printf "%b\n" "  $(BOLD)check-env-act$(RESET): verifies act env files (.vars + .secrets + ~/.actrc) and ~/.actrc permissions";; \
+	  env-help-act) printf "%b\n" "  $(BOLD)env-help-act$(RESET): prints link to act environment setup documentation";; \
+	  bootstrap) printf "%b\n" "  $(BOLD)bootstrap$(RESET): env-init + hooks + exec-bits + full quality gate (first-time dev setup)";; \
+	  bootstrap-act) printf "%b\n" "  $(BOLD)bootstrap-act$(RESET): env-init-act + check-env-act + hooks + exec-bits (enables local CI simulation via act)";; \
 	  verify)  printf "%b\n" "  $(BOLD)verify$(RESET): doctor + lint + test (recommended before pushing)";; \
 	  quality) printf "%b\n" "  $(BOLD)quality$(RESET): doctor + spotlessCheck + clean + check (matches CI intent)";; \
 	  pre-commit) printf "%b\n" "  $(BOLD)pre-commit$(RESET): smart gate (main → strict CI parity, branches → faster checks)";; \
