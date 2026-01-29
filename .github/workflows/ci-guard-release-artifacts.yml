@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   guard-release-artifacts:
-    name: Guard release artifacts (changelog/version)
+    name: Guard release artifacts (changelog)
     runs-on: ubuntu-latest
 
     steps:
@@ -26,20 +26,17 @@ jobs:
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
           GUARD_RELEASE_ARTIFACTS: ${{ vars.GUARD_RELEASE_ARTIFACTS }}
+
+          # Optional allowlist for release commit authors (comma-separated).
+          # Defaults cover common cases (GitHub Actions bot + typical semantic-release bot naming).
+          # RELEASE_BOT_NAMES: ${{ vars.RELEASE_BOT_NAMES }}
         run: |
           set -euo pipefail
 
           PROTECTED_FILES=(
             "CHANGELOG.md"
-            "gradle.properties"
-            "build.gradle"
-            "build.gradle.kts"
-            "settings.gradle"
-            "settings.gradle.kts"
-            "package.json"
-            "pom.xml"
           )
-          
+
           if [[ "${GUARD_RELEASE_ARTIFACTS:-true}" != "true" ]]; then
             echo "ℹ️ Guard disabled via vars.GUARD_RELEASE_ARTIFACTS"
             exit 0
@@ -82,23 +79,63 @@ jobs:
             exit 1
           fi
 
-          # Pushes: only allow on main with semantic-release commit
+          # Pushes: only allow on main
           if [[ "$REF_NAME" != "main" ]]; then
             echo "❌ Release artifacts may only be modified on main."
             exit 1
           fi
 
-          HEAD_MSG="$(git log -1 --pretty=%B | tr -d '\r')"
-          HEAD_FIRST_LINE="$(printf '%s' "$HEAD_MSG" | head -n 1)"
+          # --------------------------------------------------------------------
+          # Extra guards only when CHANGELOG.md changed:
+          # - Commit message must match semantic-release format
+          # - Commit author must look like a bot/app
+          # --------------------------------------------------------------------
+          if printf '%s\n' "${PROTECTED_CHANGED[@]}" | grep -qx "CHANGELOG.md"; then
+            HEAD_MSG="$(git log -1 --pretty=%B | tr -d '\r')"
+            HEAD_FIRST_LINE="$(printf '%s' "$HEAD_MSG" | head -n 1)"
 
-          echo "HEAD commit first line:"
-          echo "$HEAD_FIRST_LINE"
+            AUTHOR_NAME="$(git log -1 --pretty=%an | tr -d '\r')"
+            AUTHOR_EMAIL="$(git log -1 --pretty=%ae | tr -d '\r')"
 
-          # Allow only: "chore(release): X.Y.Z [skip ci]"
-          if ! grep -Eq '^chore\(release\): [0-9]+\.[0-9]+\.[0-9]+ \[skip ci\]$' <<< "$HEAD_FIRST_LINE"; then
-            echo "❌ Release artifacts on main must be authored by semantic-release."
-            echo "   Expected: chore(release): X.Y.Z [skip ci]"
-            exit 1
+            echo "HEAD commit first line:"
+            echo "$HEAD_FIRST_LINE"
+            echo "HEAD commit author:"
+            echo "  name=$AUTHOR_NAME"
+            echo "  email=$AUTHOR_EMAIL"
+
+            # Allow only: "chore(release): X.Y.Z [skip ci]"
+            if ! grep -Eq '^chore\(release\): [0-9]+\.[0-9]+\.[0-9]+ \[skip ci\]$' <<< "$HEAD_FIRST_LINE"; then
+              echo "❌ CHANGELOG.md updates on main must be authored by semantic-release."
+              echo "   Expected: chore(release): X.Y.Z [skip ci]"
+              exit 1
+            fi
+
+            # Author allowlist (override via vars.RELEASE_BOT_NAMES). Comma-separated.
+            # Default matches common bot/app patterns.
+            allowlist="${RELEASE_BOT_NAMES:-github-actions[bot],semantic-release-bot}"
+
+            is_allowed_author="false"
+            IFS=',' read -r -a allowed_names <<< "$allowlist"
+            for n in "${allowed_names[@]}"; do
+              n_trim="$(echo "$n" | xargs)"
+              if [[ -n "$n_trim" && "$AUTHOR_NAME" == "$n_trim" ]]; then
+                is_allowed_author="true"
+                break
+              fi
+            done
+
+            # Also allow any GitHub bot/app style author name (ends with [bot])
+            # and a GitHub noreply email.
+            if [[ "$AUTHOR_NAME" =~ \[bot\]$ && "$AUTHOR_EMAIL" == *@users.noreply.github.com ]]; then
+              is_allowed_author="true"
+            fi
+
+            if [[ "$is_allowed_author" != "true" ]]; then
+              echo "❌ CHANGELOG.md updates on main must be authored by a bot/app."
+              echo "   Allowed names (vars.RELEASE_BOT_NAMES): ${allowlist}"
+              echo "   Or any author ending with [bot] using a @users.noreply.github.com email."
+              exit 1
+            fi
           fi
 
           echo "✅ Release artifact change authorized (semantic-release)."
