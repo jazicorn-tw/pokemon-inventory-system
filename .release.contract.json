@@ -1,0 +1,190 @@
+{
+  "purpose": "Human-readable contract + rationale for .releaserc.cjs (future-you insurance). This file is NOT used by semantic-release; it documents release policy in JSON so it can be linted/queried.",
+  "last_updated": "2026-01-30",
+  "references": {
+    "usage_docs": "RELEASES.md",
+    "semantic_release_config": ".releaserc.cjs",
+    "changelog_file": "CHANGELOG.md"
+  },
+  "assumptions": [
+    "Releases are cut only from main.",
+    "Tags use v${version} format (e.g., v1.2.3).",
+    "Phase 0 safety: semantic-release execution is gated in CI via an explicit boolean (e.g., ENABLE_SEMANTIC_RELEASE=false by default, with an optional workflow_dispatch override).",
+    "Gradle release builds should publish a non-SNAPSHOT bootJar whose version matches the release tag.",
+    "CHANGELOG.md is the single changelog source of truth committed back to main.",
+    "GitHub Releases should attach the built JAR from build/libs/*.jar.",
+    "Authentication in CI uses a GitHub App token (GH_APP_ID + GH_APP_PRIVATE_KEY) and passes it as GH_TOKEN."
+  ],
+  "config_review": {
+    "branches": {
+      "value": [
+        "main"
+      ],
+      "why": "Ensures semantic-release only publishes from main and prevents accidental releases from feature branches."
+    },
+    "tagFormat": {
+      "value": "v${version}",
+      "why": "Produces familiar SemVer tags like v1.2.3 and aligns with GitHub Releases and downstream publish triggers."
+    }
+  },
+  "notes_strategy": {
+    "goal": "Keep CHANGELOG.md developer-traceable while GitHub Releases stay reader-friendly.",
+    "approach": [
+      "Generate rich notes first for CHANGELOG.md (includes short hashes + \ud83d\udce6 header + separators).",
+      "Update CHANGELOG.md using those notes.",
+      "Generate clean notes second for GitHub Releases (no hashes, simpler header)."
+    ],
+    "why": [
+      "Changelog benefits from traceability (hashes) and strong visual separation between releases.",
+      "GitHub Releases are often read by external consumers; less noise is better."
+    ]
+  },
+  "plugins_rationale": [
+    {
+      "plugin": "@semantic-release/commit-analyzer",
+      "role": "Determines whether a release happens and what type (major/minor/patch) by analyzing Conventional Commits.",
+      "why_in_this_repo": [
+        "Conventional Commits + squash-merge discipline drives releases.",
+        "Explicit releaseRules keep docs/chores/tests from cutting releases during Phase 0.",
+        "Refactor is explicitly non-releasing to reduce version noise while the project stabilizes."
+      ],
+      "release_policy": {
+        "major": "breaking changes (e.g., 'feat!:' or 'BREAKING CHANGE:')",
+        "minor": "feat",
+        "patch": [
+          "fix",
+          "perf"
+        ],
+        "no_release": [
+          "refactor",
+          "docs",
+          "chore",
+          "test",
+          "ci",
+          "style",
+          "build"
+        ]
+      }
+    },
+    {
+      "plugin": "@semantic-release/release-notes-generator",
+      "role": "Generates human-friendly release notes from commits selected for the release.",
+      "why_in_this_repo": [
+        "Keeps GitHub Release notes consistent and automatic.",
+        "Used twice to generate two different presentations (changelog vs GitHub)."
+      ],
+      "writer_behavior": {
+        "groupBy": "type",
+        "commitGroupsSort": "title",
+        "commitsSort": [
+          "scope",
+          "subject"
+        ],
+        "filters": [
+          "Merge commits are omitted (commit.merge or subject starts with 'Merge').",
+          "Non-user-facing types are omitted from notes output."
+        ],
+        "presentation": {
+          "changelog": {
+            "headerPartial": "## \ud83d\udce6 Release {{version}}",
+            "commitPartial": "- **scope:** subject (shortHash)",
+            "footerPartial": "---"
+          },
+          "github": {
+            "headerPartial": "## {{version}}",
+            "commitPartial": "- **scope:** subject",
+            "footerPartial": "(none)"
+          }
+        }
+      }
+    },
+    {
+      "plugin": "@semantic-release/changelog",
+      "role": "Updates CHANGELOG.md during the prepare step using the notes generated immediately before it.",
+      "why_in_this_repo": [
+        "CHANGELOG.md is committed back to main so it stays in sync with tags and releases.",
+        "Makes changelog maintenance automatic and repeatable."
+      ],
+      "expected_files": [
+        "CHANGELOG.md"
+      ],
+      "defaults": {
+        "changelogFile": "CHANGELOG.md",
+        "changelogTitle_default": "# Changelog"
+      }
+    },
+    {
+      "plugin": "@semantic-release/exec",
+      "role": "Runs project-specific build steps using the calculated nextRelease.version.",
+      "why_in_this_repo": [
+        "Builds a Spring Boot bootJar with a version that matches the Git tag (not -SNAPSHOT).",
+        "Ensures the artifact attached to the GitHub Release corresponds exactly to the released version."
+      ],
+      "prepareCmd_current": "./gradlew --no-daemon --gradle-user-home '${RUNNER_TEMP:-/tmp}/gradle-home' -PreleaseVersion=${nextRelease.version} clean bootJar",
+      "contracts": [
+        "Gradle must honor -PreleaseVersion (or the property name used here).",
+        "The bootJar output must land in build/libs/."
+      ]
+    },
+    {
+      "plugin": "@semantic-release/github",
+      "role": "Creates/updates the GitHub Release and uploads release assets.",
+      "why_in_this_repo": [
+        "Attaches build/libs/*.jar to the GitHub Release for easy consumption.",
+        "Uses GitHub App auth in CI (via GH_TOKEN) to avoid GITHUB_TOKEN limitations and satisfy branch protection needs."
+      ],
+      "assets": [
+        {
+          "path": "build/libs/*.jar",
+          "label": "Spring Boot JAR (bootJar)"
+        }
+      ]
+    },
+    {
+      "plugin": "@semantic-release/git",
+      "role": "Commits back generated files (e.g., CHANGELOG.md) to the release branch.",
+      "why_in_this_repo": [
+        "Keeps CHANGELOG.md in repo history aligned with releases.",
+        "Uses [skip ci] to avoid triggering CI loops on the changelog commit.",
+        "Uses reserved scope 'chore(release): ...' so automation commits are obvious."
+      ],
+      "assets": [
+        "CHANGELOG.md"
+      ],
+      "message_template_current": "chore(release): ${nextRelease.version} [skip ci]",
+      "branch_protection_note": "The GitHub App must be allowed to bypass main branch protections for this commit to succeed.",
+      "important_nuance": "This bot-authored 'chore(release): \u2026' changelog commit does not trigger a new release because 'chore' is non-releasing in releaseRules."
+    }
+  ],
+  "manual_release_flow": {
+    "what_it_is": "A workflow_dispatch manual run (enable_release=true) that allows semantic-release to run even when push-based releases are gated off.",
+    "important_nuance": "Manual execution still respects commit-analyzer rules; you still need at least one releasable commit on main since the last tag."
+  },
+  "commit_message_safety": {
+    "reserved_scope": {
+      "scope": "release",
+      "policy": "Reserved for automation (semantic-release) only. Humans should be blocked from committing '*(release): ...' locally.",
+      "enforcement": [
+        "commit-msg hook/script should reject human-authored commits matching '^type\\(release\\):' with a friendly message.",
+        "CI/bot actors are exempt."
+      ],
+      "why": [
+        "Prevents accidental confusion between release intent and automation output.",
+        "Makes bot commits instantly recognizable."
+      ]
+    }
+  },
+  "checks_you_can_run": [
+    "npx semantic-release --dry-run",
+    "Verify the expected next version and that it would publish only on main.",
+    "Confirm build/libs/*.jar exists after the exec prepareCmd in CI logs."
+  ],
+  "housekeeping": {
+    "delete_or_archive": [
+      ".release.json (deprecated; replaced by .releaserc.cjs)"
+    ],
+    "keep": [
+      "This file (.release.contract.json) as policy docs, lintable/queriable."
+    ]
+  }
+}

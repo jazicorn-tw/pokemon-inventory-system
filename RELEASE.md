@@ -3,21 +3,57 @@
 
 # 🚀 Releases (semantic-release)
 
-This repository uses **semantic-release** to automate versioning, changelogs, Git tags, GitHub Releases,
-and **optionally** downstream artifact publishing (Docker / Helm), all behind explicit CI gates.
+> **TL;DR**
+>
+> - Releases are created **only from `main`**
+> - Releases are **gated** (off by default)
+> - Commit **type** controls versioning (`feat` / `fix` / `perf`)
+> - `CHANGELOG.md` and GitHub Releases are generated automatically
+> - Artifact publishing (Docker / Helm) is optional and separately gated
+> - The `release` commit scope is **reserved for automation**
 
 ---
 
-## ✅ What happens on release
+## ⚡ TL;DR — How to get a release
 
-When a change lands on **`main`** *and releases are enabled*, the release workflow performs:
+1. Merge into `main` with a **releasable commit type**
 
-### Release phase
+   ```text
+   feat: add trainer inventory endpoint
+   ```
 
-1. Evaluate **release gates** (repo variables or manual override)
-2. Analyze commit messages (Conventional Commits) to determine the next version
-3. **Preview** the next version (dry-run, no side effects)
-4. Create a Git tag like `vX.Y.Z`
+2. Ensure one of the release gates is enabled:
+
+   ```text
+   ENABLE_SEMANTIC_RELEASE=true
+   ```
+
+   or run the workflow manually with:
+
+   ```text
+   enable_release=true
+   ```
+
+3. semantic-release:
+   - calculates the next version
+   - creates `vX.Y.Z`
+   - updates `CHANGELOG.md`
+   - publishes a GitHub Release
+
+No releasable commits → **no release** (this is expected).
+
+---
+
+## 🧠 Deep dive — Release system design
+
+### What happens on release
+
+When a change lands on **`main`** *and releases are enabled*, the workflow performs:
+
+1. Evaluate **release gates**
+2. Analyze Conventional Commits
+3. Preview the next version (dry run)
+4. Create a Git tag (`vX.Y.Z`)
 5. Generate GitHub Release notes
 6. Update `CHANGELOG.md`
 7. Commit the changelog back to `main` as:
@@ -26,34 +62,102 @@ When a change lands on **`main`** *and releases are enabled*, the release workfl
    chore(release): X.Y.Z [skip ci]
    ```
 
-### Delivery phase (optional, gated)
-
-After a version is successfully published:
-
-- 🐳 **Docker image publishing** (if enabled)
-- ⎈ **Helm chart publishing** (if enabled)
-
-> Delivery is **decoupled** from versioning. A release may occur without publishing any artifacts.
+> ⚠️ The `release` scope is **reserved for automation only**.  
+> Humans must never author `*(release): ...` commits.
 
 ---
 
-## 🚦 Release gating (important)
+### 🌿 Branch flow
 
-Releases **do not run by default**.
+- Work happens on `dev`
+- Integrate via PR into `staging`
+- Promote via PR from `staging` → `main`
+- **Releases are cut only from `main`**
 
-The release job executes only when **one of these is true**:
+---
 
-- Repository variable:
+## ✍️ Commit messages (this drives versioning)
 
-  ```text
-  ENABLE_SEMANTIC_RELEASE=true
-  ```
+semantic-release reacts only to **commit types**, not scopes.
 
-- Manual workflow run with input:
+### Releasable types
 
-  ```text
-  enable_release=true
-  ```
+| Type | Result |
+|---|---|
+| `feat` | Minor release |
+| `fix` | Patch release |
+| `perf` | Patch release |
+| `BREAKING CHANGE` | Major release |
+
+### Non-releasing types
+
+| Type | Result |
+|---|---|
+| `docs` | No release |
+| `chore` | No release |
+| `test` | No release |
+| `ci` | No release |
+| `refactor` | No release |
+| `style` | No release |
+| `build` | No release |
+
+Unknown or missing types are grouped under **🧩 Other** in release notes.
+
+---
+
+### Intentional override for refactors
+
+Refactors **do not release by default**.
+
+To intentionally cut a version (e.g. for rollback safety):
+
+```text
+fix: internal refactor + stability
+```
+
+or
+
+```text
+perf: refactor for performance
+```
+
+---
+
+## 📝 Release notes strategy
+
+This repository intentionally produces **two views** of release notes:
+
+### CHANGELOG.md
+
+- Grouped by category
+- Includes short commit hashes
+- Optimized for maintainers
+
+### GitHub Releases
+
+- Grouped by category
+- No commit hashes
+- Optimized for consumers
+
+Both are generated from the same commits using different writer options.
+
+---
+
+## 🚦 Release gating
+
+Releases are **disabled by default**.
+
+The release job runs only when **one** is true:
+
+```text
+ENABLE_SEMANTIC_RELEASE=true
+```
+
+or manual workflow input:
+
+```text
+enable_release=true
+```
 
 This prevents accidental releases from routine merges.
 
@@ -61,151 +165,24 @@ This prevents accidental releases from routine merges.
 
 ## 📦 Artifact publishing gates
 
-Artifact publishing is guarded even more strictly.
+Docker / Helm publishing requires **all** of:
 
-Docker / Helm publishing runs **only if all conditions are met**:
-
-1. A release version was actually published (`vX.Y.Z`)
-2. The workflow is running in the **canonical repository**
-3. The corresponding feature flag is enabled
-
-### Canonical repository guard
-
-```yaml
-github.repository == vars.CANONICAL_REPOSITORY
-```
-
-This ensures:
-
-- forks can run CI safely
-- **only the official repo** can publish artifacts
-
-### Feature flags
+1. A published version (`vX.Y.Z`)
+2. Running in the canonical repository
+3. The corresponding feature flag enabled
 
 ```text
-PUBLISH_DOCKER_IMAGE=true   # enable Docker publishing
-PUBLISH_HELM_CHART=true     # enable Helm publishing
+PUBLISH_DOCKER_IMAGE=true
+PUBLISH_HELM_CHART=true
 ```
 
-If any gate fails, publishing is **skipped with a warning summary** (not silently ignored).
+Forks can run CI safely but **cannot publish artifacts**.
 
 ---
 
-## 🧾 CI summaries (observability)
+## 🧪 Dry runs
 
-The workflow emits **human-readable summaries** in GitHub Actions:
-
-### Release job summary
-
-- Trigger (push / manual)
-- Branch and repository
-- Release gates and feature flags
-- Dry-run preview result
-- Final outcome (published / skipped)
-
-### Publish job summary
-
-- Canonical repo check
-- Published version
-- Docker / Helm enablement
-- Gate pass / fail indicators
-
-These appear in the **Summary tab** of each job.
-
----
-
-## 🌿 Branch flow
-
-- Work happens on `dev`
-- Integrate via PR into `staging`
-- Promote via PR from `staging` → `main`
-- **Releases are created only from `main`**
-
----
-
-## ✍️ Commit message requirements (this is what drives releases)
-
-semantic-release reacts only to **Conventional Commits** on `main`
-(or the squash commit message that lands on `main`).
-
-Use these patterns for the **squash merge commit message**:
-
-### Minor release (new features)
-
-```text
-feat(release): <summary>
-```
-
-### Patch release (bug fixes)
-
-```text
-fix(release): <summary>
-```
-
-### Major release (breaking changes)
-
-```text
-feat(release)!: <summary>
-
-BREAKING CHANGE: <migration notes>
-```
-
-### No release (docs / chores only)
-
-```text
-docs(release): <summary>
-```
-
-or
-
-```text
-chore(release): <summary>
-```
-
-### Releasable commit types
-
-| Type | Effect |
-|---|---|
-| `feat` | Minor release |
-| `fix` | Patch release |
-| `perf` | Patch release |
-| `breaking change` | Major release |
-
-### Non-releasing commit types
-
-| Type | Effect |
-|---|---|
-| `docs` | No release |
-| `chore` | No release |
-| `test` | No release |
-| `ci` | No release |
-| `refactor` | No release |
-
-### ⚠️ Intentional override for refactors (important)
-
-Refactor-only changes **do not cut releases by default** to reduce version noise.
-
-If you want to **intentionally cut a patch release** for a refactor batch
-(e.g. to create a rollback point or publish a new artifact), use an explicit
-releasable type in the **squash merge commit message**, for example:
-
-```text
-fix(release): internal refactor + stability
-```
-
-or
-
-```text
-perf(release): refactor for performance
-```
-
-This keeps releases **explicit and intentional**, even when triggered manually.
-
----
-
-## 🧪 Dry run (local or CI)
-
-Dry runs calculate the next version **without publishing anything**.
+Dry runs calculate the next version **without side effects**.
 
 ### Local
 
@@ -216,53 +193,44 @@ npx semantic-release --dry-run
 
 ### CI
 
-The release workflow always performs a **dry-run preview step** before publishing.
-This is for visibility only and has no side effects.
+Every release workflow includes a dry-run preview step for visibility.
 
 ---
 
-## 🔐 Required GitHub settings
+## 🔐 Required GitHub configuration
 
-### GitHub App (required)
+### GitHub App
 
-Releases authenticate using a **GitHub App**, not the default `GITHUB_TOKEN`.
+Releases authenticate using a **GitHub App**, not `GITHUB_TOKEN`.
 
-Add these **repository secrets**:
+Required secrets:
 
 - `GH_APP_ID`
-- `GH_APP_PRIVATE_KEY` (full PEM)
+- `GH_APP_PRIVATE_KEY`
 
-The workflow mints a short-lived installation token and passes it to semantic-release.
+### Branch protection
 
-### Branch protection (main)
-
-Because `@semantic-release/git` pushes a changelog commit to `main`,
-the **GitHub App** must be allowed in the **Bypass list** for the `main` ruleset.
-
-If not configured, releases will fail with protected-branch errors.
+Because the changelog commit is pushed to `main`, the GitHub App must be allowed
+to **bypass the `main` ruleset**.
 
 ---
 
 ## 🆘 Troubleshooting
 
-### Release workflow ran but nothing was published
+### Nothing was released
 
-- No releasable commits (`docs:` / `chore:` only)
-- This is expected behavior
-- See the **Release Summary** panel for confirmation
+- No releasable commits
+- Expected behavior — check the Release Summary
 
-### Artifact publishing skipped
+### Artifacts not published
 
-- Non-canonical repository (fork)
+- Non-canonical repo
 - Feature flag disabled
-- No release version published
+- No release version
 
-All cases are surfaced in the **Publish job summary**.
+### Changelog commit failed
 
-### Protected branch update failed
-
-- GitHub App not allowed to bypass `main` ruleset
-- Add the App to the bypass list
+- GitHub App not allowed to bypass branch protection
 
 ---
 
@@ -272,3 +240,54 @@ All cases are surfaced in the **Publish job summary**.
 - Versioning decoupled from delivery
 - Fork-safe by default
 - CI explains *why* something happened (or didn’t)
+
+---
+
+## 🧭 Why didn’t a release happen? (decision tree)
+
+Follow this top-to-bottom — you’ll always land on the answer.
+
+```text
+Did the workflow run?
+ ├─ No → Releases are gated (ENABLE_SEMANTIC_RELEASE / manual run)
+ └─ Yes
+     └─ Did semantic-release find releasable commits?
+         ├─ No
+         │   ├─ Only docs/chore/refactor/ci/test commits → Expected (no release)
+         │   └─ Squash commit message not Conventional → Fix commit message
+         └─ Yes
+             └─ Was this the canonical repository?
+                 ├─ No → Release may run, artifacts will not publish
+                 └─ Yes
+                     └─ Did artifact publishing run?
+                         ├─ No → Feature flag disabled (PUBLISH_*)
+                         └─ Yes → ✅ Everything worked
+```
+
+### Common quick fixes
+
+- **No releasable commits**
+  - Use `feat:` / `fix:` / `perf:` in the *squash merge* commit
+- **Workflow didn’t run**
+  - Set `ENABLE_SEMANTIC_RELEASE=true` or use manual input
+- **Artifacts skipped**
+  - Confirm canonical repo + feature flag enabled
+
+---
+
+## 🔗 Related release documentation
+
+- **Release contract (policy + rationale)**  
+  See `.release.contract.json` — documents *why* the release system behaves the way it does.
+
+- **semantic-release configuration**  
+  See `.releaserc.cjs` — executable source of truth.
+
+- **CHANGELOG.md**  
+  Maintainer-facing, hash-inclusive release history.
+
+These three files are intentionally kept separate:
+
+- config (`.releaserc.cjs`)
+- policy (`.release.contract.json`)
+- behavior & usage (`RELEASES.md`)
