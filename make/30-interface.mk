@@ -53,6 +53,17 @@ help: ## 🧰 Show developer help (curated)
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make db-shell" "→ psql shell into local postgres container"
 	$(call println,)
 
+	$(call println,$(YELLOW)🧼 Local hygiene (disk pressure relief)$(RESET))
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make clean-local-info" "→ snapshot (act cache + docker + colima status)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make clean-local" "→ act + docker hygiene (Colima reset is explicit)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make clean-act" "→ warn + optional remove of .gradle-act"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make clean-docker" "→ docker prune (explicit; supports auto mode)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make docker-cache-info" "→ docker disk usage breakdown"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make colima-info" "→ show colima status"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make clean-colima" "→ reset colima VM ($(RED)☢️ nuclear$(RESET))"
+	@printf "%b\n" "$(GRAY)Docs: docs/tooling/LOCAL_HYGIENE.md$(RESET)"
+	$(call println,)
+
 	$(call println,$(YELLOW)🧭 Inspection / Navigation$(RESET))
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "make tree [path]" "→ inspect repo structure (read-only). Docs: docs/TREE.md"
 	$(call println,)
@@ -91,6 +102,7 @@ help-short: ## 🧰 Quick help (minimal)
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "quality" "CI-parity gate"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "bootstrap-act" "one-time act setup"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "run-ci" "simulate CI via act"
+	@printf "  $(BOLD)%-16s$(RESET) %s\n" "clean-local" "local disk hygiene (act + docker)"
 	$(call println,)
 
 help-auto: ## 🧾 Auto-generated help (from ## comments)
@@ -102,7 +114,7 @@ explain: ## 🧠 Explain a target: make explain <target>
 	@t="$(word 2,$(MAKECMDGOALS))"; \
 	if [[ -z "$$t" ]]; then \
 	  printf "%b\n" "$(RED)❌ Usage: make explain <target>$(RESET)"; \
-	  printf "%b\n" "$(GRAY)Try one of: doctor check-env env-init env-init-force env-init-act env-init-act-force check-env-act env-help env-help-act bootstrap bootstrap-act verify quality pre-commit run-ci$(RESET)"; \
+	  printf "%b\n" "$(GRAY)Try one of: doctor check-env env-init env-init-force env-init-act env-init-act-force check-env-act env-help env-help-act bootstrap bootstrap-act verify quality pre-commit run-ci clean-local clean-act clean-docker clean-colima$(RESET)"; \
 	  exit 1; \
 	fi; \
 	$(call section,🧠  explain → $${t}); \
@@ -124,17 +136,14 @@ explain: ## 🧠 Explain a target: make explain <target>
 	  run-ci)  printf "%b\n" "  $(BOLD)run-ci$(RESET): run GitHub Actions workflows locally via act (wf defaults to ci-test; optional job)";; \
 	  act-all) printf "%b\n" "  $(BOLD)act-all$(RESET): run ALL workflows locally via act (heavy; mirrors full CI surface)";; \
 	  act-all-ci) printf "%b\n" "  $(BOLD)act-all-ci$(RESET): run CI-only workflows via act (skips image/publish workflows)";; \
-	  contributor) printf "%b\n" "  $(BOLD)contributor$(RESET): contributor role gate (format + verify)";; \
-	  reviewer) printf "%b\n" "  $(BOLD)reviewer$(RESET): reviewer role gate (CI-parity quality checks)";; \
-	  maintainer) printf "%b\n" "  $(BOLD)maintainer$(RESET): maintainer gate (quality + optional act/helm via flags)";; \
-	  helm) printf "%b\n" "  $(BOLD)helm$(RESET): Helm is prep-only (ADR-009); no publishing or deploys occur";; \
-	  deploy) printf "%b\n" "  $(BOLD)deploy$(RESET): deployment placeholder; intentionally not wired yet";; \
-	  docker-publish) printf "%b\n" "  $(BOLD)docker-publish$(RESET): CI-only publish hook; scaffolded and fails closed by default";; \
-	  helm-publish) printf "%b\n" "  $(BOLD)helm-publish$(RESET): CI-only Helm publish hook; scaffolded and fails closed by default";; \
+	  clean-local) printf "%b\n" "  $(BOLD)clean-local$(RESET): local disk hygiene (act cache + docker prune). Colima reset is explicit via clean-colima";; \
+	  clean-act) printf "%b\n" "  $(BOLD)clean-act$(RESET): warn + optional remove of act Gradle cache (.gradle-act)";; \
+	  clean-docker) printf "%b\n" "  $(BOLD)clean-docker$(RESET): docker prune (explicit opt-in; supports auto mode keyed off Colima containerd filesystem)";; \
+	  clean-colima) printf "%b\n" "  $(BOLD)clean-colima$(RESET): reset Colima VM ($(RED)☢️ nuclear$(RESET)); interactive confirmation required";; \
 	  *) \
 	    printf "%b\n" "$(YELLOW)⚠️  No extended explanation available for '$$t'.$(RESET)"; \
 	    printf "%b\n" "$(GRAY)Tip: try 'make help', 'make help-categories', or 'make help-roles'.$(RESET)"; \
-	    printf "%b\n" "$(GRAY)Docs: docs/MAKEFILE.md$(RESET)"; \
+	    printf "%b\n" "$(GRAY)Docs: docs/tooling/MAKEFILE.md$(RESET)"; \
 	    ;; \
 	esac;
 	$(call println,)

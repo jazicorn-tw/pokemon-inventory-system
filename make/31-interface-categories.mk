@@ -26,7 +26,8 @@
 HELP_CATEGORIES_SRC := $(lastword $(MAKEFILE_LIST))
 
 .PHONY: help-categories help-roles \
-        help-onboarding help-env help-quality help-docker help-category-inspection help-act help-ci
+        help-onboarding help-env help-quality help-docker help-local-hygiene \
+        help-category-inspection help-act help-ci
 
 help-categories: ## 🧭 List available help-* categories
 	$(call section,🧭  Help Categories)
@@ -103,6 +104,22 @@ help-docker: ## 🐳 Docker & database workflows
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "db-logs" "→ tail postgres logs (if available)"
 	$(call println,)
 
+help-local-hygiene: ## 🧼 Local hygiene (disk pressure relief)
+	$(call section,🧼  Local Hygiene)
+	@printf "%b\n" "$(GRAY)Tip: for act commands and workflow simulation, see: make help-act$(RESET)"
+	@printf "  $(BOLD)%-20s$(RESET) %s\n" "clean-local-info" "→ snapshot (act cache + docker + colima status)"
+	@printf "  $(BOLD)%-20s$(RESET) %s\n" "clean-local" "→ act + docker hygiene (Colima reset is explicit)"
+	$(call println,)
+	@printf "  $(BOLD)%-20s$(RESET) %s\n" "clean-act" "→ warn + optional remove of .gradle-act"
+	@printf "  $(BOLD)%-20s$(RESET) %s\n" "clean-docker" "→ docker prune (explicit opt-in; supports auto mode)"
+	@printf "  $(BOLD)%-20s$(RESET) %s\n" "docker-cache-info" "→ docker disk usage breakdown"
+	$(call println,)
+	@printf "  $(BOLD)%-20s$(RESET) %s\n" "colima-info" "→ show colima status"
+	@printf "  $(BOLD)%-20s$(RESET) %s\n" "clean-colima" "→ reset colima VM ($(RED)☢️ nuclear$(RESET))"
+	$(call println,)
+	@printf "  $(GRAY)%s$(RESET)\n" "Docs: docs/tooling/LOCAL_HYGIENE.md"
+	$(call println,)
+
 help-category-inspection: ## 🧭 Inspection / Navigation
 	$(call section,🧭  Inspection / Navigation)
 	@printf "  $(BOLD)%-22s$(RESET) %s\n" "tree [path]" "→ inspect repo structure (read-only)"
@@ -111,6 +128,7 @@ help-category-inspection: ## 🧭 Inspection / Navigation
 
 help-act: ## 🧪 Local CI with act
 	$(call section,🧪  act — Local GitHub Actions)
+	@printf "%b\n" "$(GRAY)Tip: disk errors / containerd failures? See: make help-local-hygiene$(RESET)"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "bootstrap-act" "→ first-time setup for local CI simulation"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "run-ci" "→ run via act (default wf=ci-test)"
 	@printf "  $(BOLD)%-16s$(RESET) %s\n" "list-ci" "→ list jobs for workflow via act"

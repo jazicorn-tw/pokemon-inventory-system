@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# 50-util.mk (50s — Library)
+# 50-library.mk (50s — Library)
 #
 # Responsibility: Shared helper macros and utilities.
 #

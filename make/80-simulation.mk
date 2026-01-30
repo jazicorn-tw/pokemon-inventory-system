@@ -10,7 +10,7 @@
 # act — Local GitHub Actions simulation
 # -------------------------------------------------------------------
 
-.PHONY: act act-all act-all-ci run-ci list-ci
+.PHONY: act act-all act-all-ci run-ci list-ci 
 
 act: run-ci ## 🧪 Alias: run one workflow via act
 
@@ -27,7 +27,7 @@ act-all-ci: ## 🧪 Run CI-only workflows via act (skips image workflows)
 	  printf "%b\n" "$(CYAN)▶$(RESET) $(BOLD)workflow$(RESET)=$$wf"; \
 	  $(MAKE) run-ci $$wf || exit $$?; \
 	done
-run-ci: ## 🧪 Run workflow/job via act (auto-detect event)
+run-ci: clean-local ## 🧪 Run workflow/job via act (auto-detect event)
 	$(call group_start,act)
 	@if [ ! -f "$(WORKFLOW_FILE)" ]; then \
 	  printf "%b\n" "$(RED)❌ Workflow not found: $(WORKFLOW_FILE)$(RESET)"; \
