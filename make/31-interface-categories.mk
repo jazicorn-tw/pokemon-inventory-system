@@ -120,11 +120,16 @@ help-local-hygiene: ## 🧼 Local hygiene (disk pressure relief)
 	@printf "  $(GRAY)%s$(RESET)\n" "Docs: docs/tooling/LOCAL_HYGIENE.md"
 	$(call println,)
 
-help-category-inspection: ## 🧭 Inspection / Navigation
+help-inspect: ## 🧭 Inspection / Navigation
 	$(call section,🧭  Inspection / Navigation)
-	@printf "  $(BOLD)%-22s$(RESET) %s\n" "tree [path]" "→ inspect repo structure (read-only)"
-	@printf "  $(GRAY)%s$(RESET)\n" "Docs: docs/TREE.md"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "tree [path]"              "→ inspect repo structure (read-only)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "inspect-mk"              "→ list make modules (read-only)"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "inspect-mk 50"           "→ inspect targets in a decade mk file"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "inspect-mk FLAG=a"       "→ inspect all make modules"
+	@printf "  $(BOLD)%-22s$(RESET) %s\n" "inspect-mk 50 FLAG=a"    "→ inspect all mk files in a decade"
+	@printf "  $(GRAY)%s$(RESET)\n" "Docs: docs/make/TREE.md, docs/make/INSPECT.md, scripts/inspect/"
 	$(call println,)
+
 
 help-act: ## 🧪 Local CI with act
 	$(call section,🧪  act — Local GitHub Actions)
